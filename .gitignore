@@ -8,4 +8,7 @@ dataset_saved/
 # Result related
 result/
 
+# models
+models/
+__*
 
