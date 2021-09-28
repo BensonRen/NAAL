@@ -2,7 +2,8 @@
 
 
 # Dataset related
-data/
+data*/
+dataset_saved/
 
 # Result related
 result/
