@@ -1,0 +1,10 @@
+# Get some files for ignoring
+
+
+# Dataset related
+data/
+
+# Result related
+result/
+
+
