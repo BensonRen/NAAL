@@ -13,6 +13,7 @@ from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 # from torchsummary import summary
 from torch.optim import lr_scheduler
+from torch.utils.data import Dataset
 
 # Libs
 import numpy as np
@@ -111,7 +112,6 @@ class Network(object):
         """
         return np.load(os.path.join(load_dataset, 'data_x.npy')),  np.load(os.path.join(load_dataset, 'data_y.npy'))
 
-
     def make_optimizer_eval(self, geometry_eval, optimizer_type=None):
         """
         The function to make the optimizer during evaluation time.
@@ -138,6 +138,8 @@ class Network(object):
         model = self.model_fn(self.flags)
         # summary(model, input_size=(128, 8))
         print(model)
+        pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print("Total Number of Parameters: {}".format(pytorch_total_params))
         return model
 
     def make_loss(self, logit=None, labels=None, G=None, return_long=False, epoch=None):
@@ -167,10 +169,23 @@ class Network(object):
         self.Boundary_loss = BDY_loss
         return torch.add(MSE_loss, BDY_loss)
 
-
     def build_tensor(self, nparray, requires_grad=False):
         return torch.tensor(nparray, requires_grad=requires_grad, device='cuda', dtype=torch.float)
-
+    
+    def get_train_loader(self):
+        """
+        Get the train loader from the self.data_x and self.data_y
+        """
+        if self.flags.dim_x == 1 and self.flags.dim_y == 1:
+            DataSetClass = oned_oned
+        elif self.flags.dim_x > 1 and self.flags.dim_y > 1:
+            DataSetClass = nd_nd
+        elif self.flags.dim_x == 1:
+            DataSetClass = oned_nd
+        else:
+            DataSetClass = nd_oned
+        train_data = DataSetClass(self.data_x, self.data_y)
+        return torch.utils.data.DataLoader(train_data, batch_size=self.flags.batch_size)
 
     def make_optimizer(self, model_index, optimizer_type=None):
         """
@@ -223,21 +238,21 @@ class Network(object):
                 self.models[i].load_state_dict(torch.load(os.path.join(self.ckpt_dir, 'best_model_{}.pt'.format(i)),
                                          map_location=torch.device('cpu')))
 
-    def train(self):
+    def train(self, model_ind):
         """
         The major training function. This would start the training using information given in the flags
+        :param model_ind: The index of the model that would like to train
         :return: None
         """
-
-        pytorch_total_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-        print("Total Number of Parameters: {}".format(pytorch_total_params))
+        # Get the train loader from the data_x data_y
+        train_loader = self.make_train_loader()
 
         cuda = True if torch.cuda.is_available() else False
         if cuda:
-            self.model.cuda()
+            self.models[model_ind].cuda()
 
         # Construct optimizer after the model moved to GPU
-        self.optm = self.make_optimizer()
+        self.optm = self.make_optimizer(model_ind)
         self.lr_scheduler = self.make_lr_scheduler(self.optm)
 
         a = self.flags.train_step
@@ -297,3 +312,57 @@ class Network(object):
             # Learning rate decay upon plateau
             self.lr_scheduler.step(train_avg_loss)
 
+
+
+class nd_nd(Dataset):
+    """ The simulated Dataset Class for regression purposes"""
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.len = len(x)
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, ind):
+        return self.x[ind, :], self.y[ind, :]
+
+class nd_oned(Dataset):
+    """ The simulated Dataset Class for regression purposes"""
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.len = len(x)
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, ind):
+        return self.x[ind, :], self.y[ind]
+
+class oned_nd(Dataset):
+    """ The simulated Dataset Class for regression purposes"""
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.len = len(x)
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, ind):
+        return self.x[ind], self.y[ind, :]
+
+class oned_oned(Dataset):
+    """ The simulated Dataset Class for regression purposes"""
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.len = len(x)
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, ind):
+        return self.x[ind], self.y[ind]
+        
