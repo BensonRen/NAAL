@@ -32,10 +32,12 @@ class NA(nn.Module):
         :return: S: The 300 dimension spectra
         """
         out = G                                                         # initialize the out
+        #print('G size', G.size())
         # For the linear part
         for ind, (fc, bn) in enumerate(zip(self.linears, self.bn_linears)):
             if ind != len(self.linears) - 1:
                 out = F.relu(bn(fc(out)))                                   # ReLU + BN + Linear
+                #print('out size', out.size())
             else:
                 out = fc(out)                                           # For last layer, no activation function
         return out

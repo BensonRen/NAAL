@@ -6,9 +6,13 @@ data*/
 dataset_saved/
 
 # Result related
-result/
+result*/
+results/*
 
 # models
 models/
 __*
 
+# training output files
+*.err
+*.out

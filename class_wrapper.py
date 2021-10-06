@@ -329,7 +329,7 @@ class Network(object):
                 # Model improving, save the model down
                 if test_avg_loss < best_validation_loss:
                     best_validation_loss = test_avg_loss
-                    self.save_single(model_ind)
+                    #self.save_single(model_ind)
                     #print("Saving the model down...")
 
                     if best_validation_loss < self.flags.stop_threshold:
@@ -339,6 +339,9 @@ class Network(object):
 
             # Learning rate decay upon plateau
             self.lr_scheduler.step(train_avg_loss)
+        
+        # After the training, take the best performing one from loading it
+        #self.load_single(model_ind)
 
     def train(self):
         """
@@ -433,37 +436,165 @@ class Network(object):
         pool_x = self.random_sample_X(self.flags.al_x_pool)                 # Generate some random samples for making the pool
         pool_y = self.simulator(pool_x)
         pool_x_pred_y = self.ensemble_predict(pool_x)    # make ensemble predictions
+        pool_mse_mean, pool_chosen_one_mse = 0, 0       # in case it is not MSE based
         if self.flags.al_mode == 'MSE':
             pool_mse = MSE(pool_x_pred_y, pool_y)                               # rank the ensembled prediction and get the top ones 
             index = np.argsort(pool_mse)
+            # prove that we are actually choosing the most outstanding ones
+            pool_mse_mean = np.mean(pool_mse)
+            pool_chosen_one_mse = np.mean(pool_mse[index[-self.flags.al_n_dx:]])
+            #print('the mean mse of the whole pool is {}'.format(pool_mse_mean))
+            #print('the mean mse of chosen ones {}'.format(pool_chosen_one_mse))
         elif self.flags.al_mode == 'VAR':
             pool_VAR = self.ensemble_VAR(pool_x)
             index = np.argsort(pool_VAR)
         elif self.flags.al_mode == 'Random':
             index = np.random.permutation(len(pool_x))
-        return pool_x[index[-self.flags.al_n_dx:]]
+        else:
+            print('Your Active Learning mode is wrong, check again!')
+            quit()
+        return pool_x[index[-self.flags.al_n_dx:]], pool_x_pred_y, pool_y, index, pool_mse_mean, pool_chosen_one_mse
     
     def active_learn(self):
         """
         The main active learning function
         """
-        # First start from a base model of training 
-        self.train()
-        print('finish model initial training')
-        mse = np.mean(self.ensemble_MSE(self.test_X, self.test_Y))
-        print('Initial ensemble mse = ', mse)
+        test_set_mse, train_set_mse, mse_pool, mse_selected_pool, mse_selected_after_train = [], [], [], [], [] 
         # Active learning part
         for al_step in range(self.flags.al_n_step):
-            # First we select the additional X
-            additional_X = self.get_additional_X()
-            # Put them into training set
-            self.add_X_into_trainset(additional_X)
+            save_dir = 'results/fig/{}_retrain_{}_bs_{}_pool_{}_dx_{}_x0_{}_nmod_{}'.format(self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
+                                                                            self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_x0, self.flags.al_n_model)
+            self.plot_both_plots(iteration_ind=al_step, save_dir=save_dir)                     # Get the trained model
+
+            # reset weights for training
+            if self.flags.reset_weight:
+                self.reset_params()
+
             # Train again here
             self.train()
+            
+            if al_step > 0:
+                mse_added = np.mean(self.ensemble_MSE(additional_X, self.simulator(additional_X)))
+                #print('after training, the MSE of the added X is ', mse_added)
+                mse_selected_after_train.append(mse_added)
+            
             # Calculate mse and report that
-            mse = np.mean(self.ensemble_MSE(self.test_X, self.test_Y))
-            print('AL step {}, current train set size = {}, ensemble mse = {}, the AL_mode is {}'.format(al_step, 
-                    len(self.data_x), mse, self.flags.al_mode))
+            mse_train = np.mean(self.ensemble_MSE(self.data_x, self.data_y))
+            mse_test = np.mean(self.ensemble_MSE(self.test_X, self.test_Y))
+            print('AL step {}, current train set size = {}, train set mse = {}, test set mse = {}, the AL_mode is {}, retrain = {}'.format(al_step, 
+                    len(self.data_x), mse_train, mse_test, self.flags.al_mode, self.flags.reset_weight))
+
+            # First we select the additional X
+            additional_X, pool_x_pred_y, pool_y, index, pool_mse, pool_chosen_mse = self.get_additional_X()
+            
+            # Put them into training set
+            self.add_X_into_trainset(additional_X)
+            
+            # Adding things to list for post processing
+            test_set_mse.append(mse_test)
+            train_set_mse.append(mse_train)
+            mse_pool.append(pool_mse)
+            mse_selected_pool.append(pool_chosen_mse)
+           
+        # Plot the post analysis plots
+        self.plot_analysis_mses(test_set_mse, train_set_mse, mse_pool, mse_selected_pool, mse_selected_after_train, save_dir=save_dir)
+
+    def plot_analysis_mses(self, test_set_mse, train_set_mse, mse_pool, mse_selected_pool, mse_selected_after_train, save_dir):
+        """
+        The plotting function for the post analysis
+        """
+        f = plt.figure()
+        plt.plot(test_set_mse, '--x', alpha=0.3, linewidth=4,  label='test set')
+        plt.plot(train_set_mse, alpha=0.4, label='train set')
+        plt.plot(mse_selected_after_train, '--x', alpha=0.5, linewidth=2, label='selected after train')
+        
+        if self.flags.al_mode == 'MSE':
+            plt.plot(mse_pool, alpha=0.5, label='pool mse')
+            plt.plot(mse_selected_pool, alpha=0.5, label='selected in pool')
+        plt.legend()
+        plt.xlabel('iteration')
+        plt.ylabel('MSE')
+        plt.title('MSE comparison')
+        plt.savefig(os.path.join(save_dir, 'agg_mse_plot.png'))
+
+    def reset_params(self):
+        """
+        The funciton to reset all the trainable parameters
+        """
+        for i in range(self.n_model):
+            for layer in self.models[i].children():
+                if hasattr(layer, 'reset_parameters'):
+                    layer.reset_parameters()
+
+    #########################################################
+    # The portion that is used to debug the training process#
+    #########################################################
+    def get_training_data_distribution(self, iteration_ind, save_dir, fig_ax=None):
+        """
+        The function that output the plot of the histogram plot of the training data distribution
+        """
+        if fig_ax is None:
+            f = plt.figure(figsize=[10, 3])
+        else:
+            ax = plt.subplot(211)
+        plt.hist(self.data_x, bins=100)
+        plt.xlim([self.flags.dim_x_low[0], self.flags.dim_x_high[0]])
+        plt.xlabel('x')
+        plt.ylabel('frequency')
+        plt.title('training data distribution @ iteration {}, total #= {} '.format(iteration_ind, len(self.data_x)))
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        if fig_ax is None:
+            plt.savefig(os.path.join(save_dir, 'train_distribution_@iter_{}'.format(iteration_ind)))
+
+    def plot_sine_debug_plot(self, iteration_ind, save_dir, fig_ax=None):
+        """
+        The function that plots the 
+        """
+        if fig_ax is None:
+            f = plt.figure(figsize=[10, 3])
+        else:
+            ax = plt.subplot(212)
+        # Get the base x and y
+        all_x = np.reshape(np.linspace(self.flags.dim_x_low, 
+                                        self.flags.dim_x_high, 
+                                        1000, dtype=np.float), [-1,1])
+        #print('shape of all_x', np.shape(all_x))
+        all_y = self.simulator(all_x)
+        #print('shape of all_y', np.shape(all_y))
+        plt.plot(all_x, all_y, label='gt')
+        # Plot the predicted value and the uncertainty
+        all_yp = self.ensemble_predict_mat(all_x)           # Get the matrix format of all_yp
+        # plot each individual curves
+        for i in range(len(all_yp)):
+            plt.plot(all_x, all_yp[i], alpha=0.1, c='r', label='NN{}'.format(i))
+        #print('shape of all_yp', np.shape(all_yp))
+        avg_y = np.mean(all_yp, axis=0)                     # Get the average y
+        #print('shape of avg_y', np.shape(avg_y))
+        std_y = np.sqrt(np.var(all_yp, axis=0))             # Get the variance
+        #print('MSE of all y =', np.mean(MSE(avg_y, all_y)))
+        #print('shape of std_y', np.shape(std_y))
+        plt.plot(all_x, avg_y, label='average')
+        plt.plot(all_x, np.abs(all_y - avg_y), label='sqrt(MSE)')
+        plt.fill_between(np.ravel(all_x), np.ravel(avg_y-std_y), np.ravel(avg_y+std_y), 
+                        alpha=0.3,label='std')
+        plt.xlim([self.flags.dim_x_low[0], self.flags.dim_x_high[0]])
+        plt.legend()
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.title('Committee performance @ iteration {} with {} training data'.format(iteration_ind, len(self.data_x)))
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        if fig_ax is None:
+            plt.savefig(os.path.join(save_dir, 'sine_debug_plot_@iter_{}'.format(iteration_ind)))
+
+    def plot_both_plots(self, iteration_ind, save_dir='results/fig'):
+        #print('plotting debugging plots!')
+        f = plt.figure(figsize=[10, 6])
+        self.get_training_data_distribution(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
+        self.plot_sine_debug_plot(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
+        f.savefig(os.path.join(save_dir, 'both_plot_@iter_{}'.format(iteration_ind)))
+        plt.cla()
 
 class nd_nd(Dataset):
     """ The simulated Dataset Class for regression purposes"""
