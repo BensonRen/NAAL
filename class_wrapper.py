@@ -455,15 +455,19 @@ class Network(object):
             quit()
         return pool_x[index[-self.flags.al_n_dx:]], pool_x_pred_y, pool_y, index, pool_mse_mean, pool_chosen_one_mse
     
-    def active_learn(self):
+    def active_learn(self, trail=0):
         """
         The main active learning function
         """
         test_set_mse, train_set_mse, mse_pool, mse_selected_pool, mse_selected_after_train = [], [], [], [], [] 
         # Active learning part
         for al_step in range(self.flags.al_n_step):
-            save_dir = 'results/fig/{}_retrain_{}_bs_{}_pool_{}_dx_{}_x0_{}_nmod_{}'.format(self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
-                                                                            self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_x0, self.flags.al_n_model)
+            try: 
+                save_dir = os.path.join(self.flags.plot_dir, '{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
+                                                                            self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail))
+            except:
+                save_dir = 'results/fig/{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
+                                                                            self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail)
             self.plot_both_plots(iteration_ind=al_step, save_dir=save_dir)                     # Get the trained model
 
             # reset weights for training
@@ -497,9 +501,11 @@ class Network(object):
             mse_selected_pool.append(pool_chosen_mse)
            
         # Plot the post analysis plots
-        self.plot_analysis_mses(test_set_mse, train_set_mse, mse_pool, mse_selected_pool, mse_selected_after_train, save_dir=save_dir)
+        self.plot_analysis_mses(test_set_mse, train_set_mse, mse_pool, mse_selected_pool, 
+                                mse_selected_after_train, save_dir=save_dir)
 
-    def plot_analysis_mses(self, test_set_mse, train_set_mse, mse_pool, mse_selected_pool, mse_selected_after_train, save_dir):
+    def plot_analysis_mses(self, test_set_mse, train_set_mse, mse_pool, mse_selected_pool, 
+                        mse_selected_after_train, save_dir, save_raw_data=True):
         """
         The plotting function for the post analysis
         """
@@ -516,6 +522,13 @@ class Network(object):
         plt.ylabel('MSE')
         plt.title('MSE comparison')
         plt.savefig(os.path.join(save_dir, 'agg_mse_plot.png'))
+        if save_raw_data:           # The option to save the raw data
+            np.save(os.path.join(save_dir, 'test_mse'), test_set_mse)
+            np.save(os.path.join(save_dir,'train_mse'), train_set_mse)
+            np.save(os.path.join(save_dir,'mse_selected_after_train'), mse_selected_after_train)
+            if self.flags.al_mode == 'MSE':
+                np.save(os.path.join(save_dir,'mse_pool'), mse_pool)
+                np.save(os.path.join(save_dir, 'mse_selected_pool'), mse_selected_pool)
 
     def reset_params(self):
         """
@@ -587,6 +600,8 @@ class Network(object):
             os.makedirs(save_dir)
         if fig_ax is None:
             plt.savefig(os.path.join(save_dir, 'sine_debug_plot_@iter_{}'.format(iteration_ind)))
+
+
 
     def plot_both_plots(self, iteration_ind, save_dir='results/fig'):
         #print('plotting debugging plots!')

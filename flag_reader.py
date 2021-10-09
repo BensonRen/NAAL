@@ -28,6 +28,8 @@ def read_flag():
     parser.add_argument('--load-dataset', default=LOAD_DATASET, type=str,  help='Default None, if yes then load the dataset from that folder')
     parser.add_argument('--load-testset', default=LOAD_TESTSET, type=str,  help='Default None, if yes then load the testset from that folder')
     parser.add_argument('--reset-weight', default=RESET_WEIGHT, type=bool,  help='Whether we re-train the whole thing')
+    parser.add_argument('--plot-dir', default=PLOT_DIR, type=str,  help='Default None, if yes then load the testset from that folder')
+
     
     # Data_Set parameter
     parser.add_argument('--data-set', default=DATA_SET, type=str, help='which data set you are chosing')

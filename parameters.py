@@ -16,7 +16,8 @@ AL_TEST_N = 1000
 AL_X_POOL = 100
 LOAD_DATASET = None
 LOAD_TESTSET = None
-RESET_WEIGHT = False
+RESET_WEIGHT = False 
+PLOT_DIR = 'results/fig'
 
 # Dataset related parameters
 DATA_SET = 'sine'
