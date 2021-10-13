@@ -29,6 +29,7 @@ def read_flag():
     parser.add_argument('--load-testset', default=LOAD_TESTSET, type=str,  help='Default None, if yes then load the testset from that folder')
     parser.add_argument('--reset-weight', default=RESET_WEIGHT, type=bool,  help='Whether we re-train the whole thing')
     parser.add_argument('--plot-dir', default=PLOT_DIR, type=str,  help='Default None, if yes then load the testset from that folder')
+    parser.add_argument('--plot-correlation-VAR-MSE', default=COR_VAR_MSE, type=bool,  help='Flag to plot the correlation scattering plot of the VAR and MSE correlation')
 
     
     # Data_Set parameter

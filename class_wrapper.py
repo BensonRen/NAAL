@@ -5,6 +5,7 @@ The class wrapper for the networks
 import os
 import time
 import sys
+from numpy.lib.npyio import save
 
 from torch._C import dtype
 sys.path.append('../utils/')
@@ -429,14 +430,14 @@ class Network(object):
         self.data_x = np.concatenate([self.data_x, additional_X])
         self.data_y = np.concatenate([self.data_y, additional_Y])
 
-    def get_additional_X(self):
+    def get_additional_X(self, save_dir=None, step_num=None):
         """
         Select the additional X from a pool (that is randomly generated)
         """
         pool_x = self.random_sample_X(self.flags.al_x_pool)                 # Generate some random samples for making the pool
         pool_y = self.simulator(pool_x)
         pool_x_pred_y = self.ensemble_predict(pool_x)    # make ensemble predictions
-        pool_mse_mean, pool_chosen_one_mse = 0, 0       # in case it is not MSE based
+        pool_mse_mean, pool_chosen_one_mse, var_mse_coreff = 0, 0, 0       # in case it is not MSE based
         if self.flags.al_mode == 'MSE':
             pool_mse = MSE(pool_x_pred_y, pool_y)                               # rank the ensembled prediction and get the top ones 
             index = np.argsort(pool_mse)
@@ -448,18 +449,28 @@ class Network(object):
         elif self.flags.al_mode == 'VAR':
             pool_VAR = self.ensemble_VAR(pool_x)
             index = np.argsort(pool_VAR)
+            if self.flags.plot_correlation_VAR_MSE:
+                pool_mse = MSE(pool_x_pred_y, pool_y)                               # rank the ensembled prediction and get the top ones 
+                f = plt.figure(figsize=[8, 4])
+                var_mse_coreff = np.corrcoef(pool_mse, pool_VAR)[0, 1]
+                plt.scatter(pool_mse, pool_VAR,label='R={}'.format(var_mse_coreff))
+                plt.xlabel('pool mse')
+                plt.ylabel('pool VAR')
+                plt.title('VAR_MSE correlation @ step {}'.format(step_num))
+                plt.legend()
+                plt.savefig(os.path.join(save_dir, 'VAR_MSE_correlation_step{:.2f}'.format(step_num)))
         elif self.flags.al_mode == 'Random':
             index = np.random.permutation(len(pool_x))
         else:
             print('Your Active Learning mode is wrong, check again!')
             quit()
-        return pool_x[index[-self.flags.al_n_dx:]], pool_x_pred_y, pool_y, index, pool_mse_mean, pool_chosen_one_mse
+        return pool_x[index[-self.flags.al_n_dx:]], pool_x_pred_y, pool_y, index, pool_mse_mean, pool_chosen_one_mse, var_mse_coreff
     
     def active_learn(self, trail=0):
         """
         The main active learning function
         """
-        test_set_mse, train_set_mse, mse_pool, mse_selected_pool, mse_selected_after_train = [], [], [], [], [] 
+        test_set_mse, train_set_mse, mse_pool, mse_selected_pool, mse_selected_after_train, var_mse_coreff_list = [], [], [], [], [], []
         # Active learning part
         for al_step in range(self.flags.al_n_step):
             try: 
@@ -489,7 +500,7 @@ class Network(object):
                     len(self.data_x), mse_train, mse_test, self.flags.al_mode, self.flags.reset_weight))
 
             # First we select the additional X
-            additional_X, pool_x_pred_y, pool_y, index, pool_mse, pool_chosen_mse = self.get_additional_X()
+            additional_X, pool_x_pred_y, pool_y, index, pool_mse, pool_chosen_mse, var_mse_coreff = self.get_additional_X(save_dir=save_dir, step_num=al_step)
             
             # Put them into training set
             self.add_X_into_trainset(additional_X)
@@ -499,13 +510,17 @@ class Network(object):
             train_set_mse.append(mse_train)
             mse_pool.append(pool_mse)
             mse_selected_pool.append(pool_chosen_mse)
+            var_mse_coreff_list.append(var_mse_coreff)
            
         # Plot the post analysis plots
         self.plot_analysis_mses(test_set_mse, train_set_mse, mse_pool, mse_selected_pool, 
-                                mse_selected_after_train, save_dir=save_dir)
+                                mse_selected_after_train, var_mse_coreff_list, save_dir=save_dir)
+        
+        # Plot the final Xtrain distribution
+        self.get_training_data_distribution(iteration_ind='end', save_dir=save_dir)
 
     def plot_analysis_mses(self, test_set_mse, train_set_mse, mse_pool, mse_selected_pool, 
-                        mse_selected_after_train, save_dir, save_raw_data=True):
+                        mse_selected_after_train, var_mse_coreff_list, save_dir, save_raw_data=True):
         """
         The plotting function for the post analysis
         """
@@ -522,6 +537,15 @@ class Network(object):
         plt.ylabel('MSE')
         plt.title('MSE comparison')
         plt.savefig(os.path.join(save_dir, 'agg_mse_plot.png'))
+
+        # Plot the correlation points
+        if np.sum(var_mse_coreff_list) != 0:
+            f = plt.figure(figsize=[8, 4])
+            plt.plot(var_mse_coreff_list)
+            plt.xlabel('iteration')
+            plt.ylabel('mse-var cor')
+            plt.savefig(os.path.join(save_dir, 'mse_var_cor.png'))
+
         if save_raw_data:           # The option to save the raw data
             np.save(os.path.join(save_dir, 'test_mse'), test_set_mse)
             np.save(os.path.join(save_dir,'train_mse'), train_set_mse)

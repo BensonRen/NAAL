@@ -16,3 +16,6 @@ __*
 # training output files
 *.err
 *.out
+
+#PID file
+pidfile*
