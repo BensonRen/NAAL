@@ -435,6 +435,8 @@ class Network(object):
         Select the additional X from a pool (that is randomly generated)
         """
         pool_x = self.random_sample_X(self.flags.al_x_pool)                 # Generate some random samples for making the pool
+        if step_num != None:
+            print('in step {}, the sum of pool x is {}'.format(step_num, np.sum(pool_x)))
         pool_y = self.simulator(pool_x)
         pool_x_pred_y = self.ensemble_predict(pool_x)    # make ensemble predictions
         pool_mse_mean, pool_chosen_one_mse, var_mse_coreff = 0, 0, 0       # in case it is not MSE based
@@ -464,7 +466,10 @@ class Network(object):
                 plt.legend()
                 plt.savefig(os.path.join(save_dir, 'VAR_MSE_correlation_step{}.png'.format(step_num)))
         elif self.flags.al_mode == 'Random':
-            index = np.random.permutation(len(pool_x))
+            # Two ways of random, the first is to permute as below, however, this would interupt the random state of numpy, therefore for reproducibility we use the other
+            # index = np.random.permutation(len(pool_x))
+            # The simplest random way, just the sequence itself
+            index = range(len(pool_x))
         else:
             print('Your Active Learning mode is wrong, check again!')
             quit()

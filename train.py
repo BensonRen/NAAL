@@ -15,6 +15,7 @@ sys.path.append('../utils/')
 import flag_reader
 from class_wrapper import Network
 from model_maker import NA
+import numpy as np
 
 def AL_from_flag(flags, trail=0):
     """
@@ -35,6 +36,18 @@ def AL_debug(flags):
     ntwk.get_training_data_distribution(iteration_ind=1)
     ntwk.plot_sine_debug_plot(iteration_ind=1)
 
+def hash_random_seed(reset_weight, al_n_step, al_n_dx, al_n_x0, al_x_pool, n_models, trail):
+    """
+    This hashes the combination of the input hyper-parameter in a unique and retreivable way (hopefully)
+    """
+    hashed_random_seed = int(str(int(reset_weight)) + str(al_n_step) + str(al_n_dx) + str(al_n_x0) + \
+                        str(al_x_pool) + str(n_models) + str(trail))
+    print('hashed_random_seed=', hashed_random_seed)
+    
+    # To make sure random seed is within range [0, 2^32 - 1]
+    hashed_random_seed = hashed_random_seed % (2**32)
+    return int(hashed_random_seed)
+
 def hyper_sweep_AL():
     """
     The code to hyper-sweep the active learning
@@ -42,6 +55,7 @@ def hyper_sweep_AL():
     num_train_upper = 200
     #num_train_upper = 800
     for reset_weight in [True, False]:
+    #for reset_weight in [True]:
         #for al_mode in ['VAR']:
         for al_mode in ['VAR','Random','MSE']:
         #for al_mode in ['Random','MSE']:
@@ -51,17 +65,16 @@ def hyper_sweep_AL():
                 #for al_n_dx in [1, 5, 10, 20, 50]:
                     for al_n_x0 in [10]:
                     #for al_n_x0 in [20, 50, 100, 200]:
-                        for al_x_pool_factor in [0.1]:       # The size of the pool divided by the number of points chosen
+                        for al_x_pool_factor in [0.05]:       # The size of the pool divided by the number of points chosen
                         #for al_x_pool_factor in [0.1, 0.02]:       # The size of the pool divided by the number of points chosen
                         #for al_x_pool_factor in [0.01, 0.1, 0.2]:       # The size of the pool divided by the number of points chosen
-                            for n_models in [20]:
-                            #for n_models in [5]:
-                            #for n_models in [2, 20]:
-                                for i in range(5):                                      # Total number of trails to aggregate
+                            for n_models in [50]:
+                                for i in range(20):                                      # Total number of trails to aggregate
                                     flags = flag_reader.read_flag()  	#setting the base case
                                     flags.reset_weight = reset_weight
                                     flags.al_n_model = n_models
                                     flags.al_mode = al_mode
+                                    # Get the actual al_step
                                     if al_n_step == -1:
                                         flags.al_n_step = (num_train_upper - al_n_x0) // al_n_dx
                                     else:
@@ -69,9 +82,15 @@ def hyper_sweep_AL():
                                     flags.al_n_dx = al_n_dx
                                     flags.al_n_x0 = al_n_x0
                                     flags.al_x_pool = int(al_n_dx / al_x_pool_factor)
+                                    # Set the plotting directory
                                     #flags.plot_dir = 'results/correlation_trail'
-                                    flags.plot_dir = 'results/var'
-                                    #flags.plot_dir = 'results/best_retrain_trail_optimal_method'
+                                    flags.plot_dir = 'results/var_fix_random_seed'
+                                    #flags.plot_dir = 'results/testing_random_state'
+                                    
+                                    # Fix the same random number generator state for the same experiments
+                                    hashed_random_seed = hash_random_seed(flags.reset_weight, flags.al_n_step, flags.al_n_dx, flags.al_n_x0, flags.al_x_pool, flags.al_n_model, trail=i)
+                                    np.random.seed(hashed_random_seed)
+
                                     AL_from_flag(flags, trail=i)
 
 if __name__ == '__main__':
