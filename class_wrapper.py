@@ -24,13 +24,13 @@ from math import inf
 import matplotlib.pyplot as plt
 import pandas as pd
 
-def MSE(pred, truth):
+def MSE(pred, truth, axis=1):
     """
     The MSE numpy version
     :param: pred/truth [#data, #dim]
     :return: list of MSE with len = #data
     """
-    return np.mean(np.square(truth - pred), axis=1)
+    return np.mean(np.square(truth - pred), axis=axis)
 
 class Network(object):
     def __init__(self, model_fn, flags, ckpt_dir=os.path.join(os.path.abspath(''), 'models')):
@@ -417,7 +417,7 @@ class Network(object):
         mean_pred = np.mean(Ypred_mat, axis=0)
         var = np.mean(np.mean(np.square(Ypred_mat - mean_pred),axis=0), axis=-1)
         print('the shape of the variance output is ', np.shape(var))
-        return var
+        return var, Ypred_mat
 
     def add_X_into_trainset(self, additional_X, additional_Y=None):
         """
@@ -447,18 +447,22 @@ class Network(object):
             #print('the mean mse of the whole pool is {}'.format(pool_mse_mean))
             #print('the mean mse of chosen ones {}'.format(pool_chosen_one_mse))
         elif self.flags.al_mode == 'VAR':
-            pool_VAR = self.ensemble_VAR(pool_x)
+            pool_VAR, pool_x_pred_y_mat = self.ensemble_VAR(pool_x)
             index = np.argsort(pool_VAR)
             if self.flags.plot_correlation_VAR_MSE:
-                pool_mse = MSE(pool_x_pred_y, pool_y)                               # rank the ensembled prediction and get the top ones 
+                #print('shape of mat', np.shape(pool_x_pred_y_mat))
+                pool_mse_models = np.ravel(MSE(pool_x_pred_y_mat, pool_y, axis=0))                              # rank the ensembled prediction and get the top ones 
+                # print('size of pool_mse_models', np.shape(pool_mse_models))
+                # print('size of pool_VAR', np.shape(pool_VAR))
+                # print(pool_mse_models)
                 f = plt.figure(figsize=[8, 4])
-                var_mse_coreff = np.corrcoef(pool_mse, pool_VAR)[0, 1]
-                plt.scatter(pool_mse, pool_VAR,label='R={}'.format(var_mse_coreff))
+                var_mse_coreff = np.corrcoef(pool_mse_models, pool_VAR)[0, 1]
+                plt.scatter(pool_mse_models, pool_VAR,label='R={:.2f}'.format(var_mse_coreff))
                 plt.xlabel('pool mse')
                 plt.ylabel('pool VAR')
                 plt.title('VAR_MSE correlation @ step {}'.format(step_num))
                 plt.legend()
-                plt.savefig(os.path.join(save_dir, 'VAR_MSE_correlation_step{:.2f}'.format(step_num)))
+                plt.savefig(os.path.join(save_dir, 'VAR_MSE_correlation_step{}.png'.format(step_num)))
         elif self.flags.al_mode == 'Random':
             index = np.random.permutation(len(pool_x))
         else:
@@ -487,6 +491,8 @@ class Network(object):
 
             # Train again here
             self.train()
+
+            # Select the subset that is the best behaving
             
             if al_step > 0:
                 mse_added = np.mean(self.ensemble_MSE(additional_X, self.simulator(additional_X)))
@@ -553,6 +559,8 @@ class Network(object):
             if self.flags.al_mode == 'MSE':
                 np.save(os.path.join(save_dir,'mse_pool'), mse_pool)
                 np.save(os.path.join(save_dir, 'mse_selected_pool'), mse_selected_pool)
+            elif self.flags.al_mode == 'VAR':
+                np.save(os.path.join(save_dir,'var_mse_coreff'), var_mse_coreff_list)
 
     def reset_params(self):
         """
