@@ -52,13 +52,15 @@ def hyper_sweep_AL():
     """
     The code to hyper-sweep the active learning
     """
+    #num_train_upper = 15
     num_train_upper = 200
-    #num_train_upper = 800
     for reset_weight in [True, False]:
+    #for reset_weight in [False]:
     #for reset_weight in [True]:
-        #for al_mode in ['VAR']:
-        for al_mode in ['VAR','Random','MSE']:
-        #for al_mode in ['Random','MSE']:
+        for al_mode in ['VAR']:
+        #for al_mode in ['Random']:
+        #for al_mode in ['VAR','Random','MSE']:
+        #for al_mode in ['MSE','Random']:
             for al_n_step in [-1]:
             #for al_n_step in [20]:
                 for al_n_dx in [5]:
@@ -69,7 +71,7 @@ def hyper_sweep_AL():
                         #for al_x_pool_factor in [0.1, 0.02]:       # The size of the pool divided by the number of points chosen
                         #for al_x_pool_factor in [0.01, 0.1, 0.2]:       # The size of the pool divided by the number of points chosen
                             for n_models in [50]:
-                                for i in range(20):                                      # Total number of trails to aggregate
+                                for i in range(18, 20):                                      # Total number of trails to aggregate
                                     flags = flag_reader.read_flag()  	#setting the base case
                                     flags.reset_weight = reset_weight
                                     flags.al_n_model = n_models
@@ -84,7 +86,9 @@ def hyper_sweep_AL():
                                     flags.al_x_pool = int(al_n_dx / al_x_pool_factor)
                                     # Set the plotting directory
                                     #flags.plot_dir = 'results/correlation_trail'
-                                    flags.plot_dir = 'results/var_fix_random_seed'
+                                    #flags.plot_dir = 'results/prior_test'
+                                    flags.plot_dir = 'results/30_sine_nmod'
+                                    #flags.plot_dir = 'results/single_model_30_sine'
                                     #flags.plot_dir = 'results/testing_random_state'
                                     
                                     # Fix the same random number generator state for the same experiments

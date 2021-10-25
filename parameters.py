@@ -24,11 +24,11 @@ PLOT_DIR = 'results/fig'
 DATA_SET = 'sine'
 DIM_X = 1
 DIM_Y = 1
-DIM_X_LOW = [-10]
-DIM_X_HIGH = [10]
+DIM_X_LOW = [-30]
+DIM_X_HIGH = [30]
 
 # Model Architectural Params 
-LINEAR = [DIM_X, 20,  20, DIM_Y]
+LINEAR = [DIM_X, 20,  20, 20, 20, DIM_Y]
 
 # Optimizer Params
 OPTIM = "Adam"

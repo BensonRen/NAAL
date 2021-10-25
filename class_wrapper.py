@@ -475,6 +475,20 @@ class Network(object):
             quit()
         return pool_x[index[-self.flags.al_n_dx:]], pool_x_pred_y, pool_y, index, pool_mse_mean, pool_chosen_one_mse, var_mse_coreff
     
+    def add_noise_initialize(self, noise_factor=2):
+        """
+        This function magnifies the noise for the initialized network by directly multiplying all the weights, since it is a non-linear system it is more noisy
+        """
+        for i in range(self.n_model):
+            for module_list in self.models[i].children():
+                for layer in module_list:
+                    with torch.no_grad():
+                        try:
+                            layer.weight *= noise_factor
+                            layer.bias *= noise_factor
+                        except:
+                            print('In add noise init, this is layer {}, this is not working'.format(layer))
+        
     def active_learn(self, trail=0):
         """
         The main active learning function
@@ -488,11 +502,17 @@ class Network(object):
             except:
                 save_dir = 'results/fig/{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
                                                                             self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail)
-            self.plot_both_plots(iteration_ind=al_step, save_dir=save_dir)                     # Get the trained model
+            
+
+            # Adding the noise in the network prior
+            # if al_step == 0:
+            #     self.add_noise_initialize()
 
             # reset weights for training
             if self.flags.reset_weight:
                 self.reset_params()
+
+            self.plot_both_plots(iteration_ind=al_step, save_dir=save_dir)                     # Get the trained model
 
             # Train again here
             self.train()
@@ -529,7 +549,10 @@ class Network(object):
         
         # Plot the final Xtrain distribution
         self.get_training_data_distribution(iteration_ind='end', save_dir=save_dir)
-
+        
+        # Make sure all the figures are closed
+        plt.clf()
+        
     def plot_analysis_mses(self, test_set_mse, train_set_mse, mse_pool, mse_selected_pool, 
                         mse_selected_after_train, var_mse_coreff_list, save_dir, save_raw_data=True):
         """
