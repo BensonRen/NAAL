@@ -67,11 +67,11 @@ def hyper_sweep_AL():
                 #for al_n_dx in [1, 5, 10, 20, 50]:
                     for al_n_x0 in [10]:
                     #for al_n_x0 in [20, 50, 100, 200]:
-                        for al_x_pool_factor in [0.05]:       # The size of the pool divided by the number of points chosen
+                        for al_x_pool_factor in [0.01]:       # The size of the pool divided by the number of points chosen
                         #for al_x_pool_factor in [0.1, 0.02]:       # The size of the pool divided by the number of points chosen
                         #for al_x_pool_factor in [0.01, 0.1, 0.2]:       # The size of the pool divided by the number of points chosen
-                            for n_models in [50]:
-                                for i in range(18, 20):                                      # Total number of trails to aggregate
+                            for n_models in [20]:
+                                for i in range(20):                                      # Total number of trails to aggregate
                                     flags = flag_reader.read_flag()  	#setting the base case
                                     flags.reset_weight = reset_weight
                                     flags.al_n_model = n_models
@@ -87,7 +87,8 @@ def hyper_sweep_AL():
                                     # Set the plotting directory
                                     #flags.plot_dir = 'results/correlation_trail'
                                     #flags.plot_dir = 'results/prior_test'
-                                    flags.plot_dir = 'results/30_sine_nmod'
+                                    #flags.plot_dir = 'results/30_sine_nmod'
+                                    flags.plot_dir = 'results/30_sine_nmod_20_add_noise_add_2'
                                     #flags.plot_dir = 'results/single_model_30_sine'
                                     #flags.plot_dir = 'results/testing_random_state'
                                     

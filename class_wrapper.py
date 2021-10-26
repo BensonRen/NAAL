@@ -484,8 +484,10 @@ class Network(object):
                 for layer in module_list:
                     with torch.no_grad():
                         try:
-                            layer.weight *= noise_factor
-                            layer.bias *= noise_factor
+                            #layer.weight *= noise_factor
+                            #layer.bias *= noise_factor
+                            layer.weight += np.random.normal(0, noise_factor)
+                            layer.bias += np.random.normal(0, noise_factor)
                         except:
                             print('In add noise init, this is layer {}, this is not working'.format(layer))
         
@@ -503,10 +505,9 @@ class Network(object):
                 save_dir = 'results/fig/{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
                                                                             self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail)
             
-
             # Adding the noise in the network prior
-            # if al_step == 0:
-            #     self.add_noise_initialize()
+            if al_step == 0:
+                self.add_noise_initialize()
 
             # reset weights for training
             if self.flags.reset_weight:
