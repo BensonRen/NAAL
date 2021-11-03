@@ -208,7 +208,7 @@ class Network(object):
         else:
             DataSetClass = nd_oned
         data = DataSetClass(data_x, data_y)
-        return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size)
+        return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True)
 
     def make_optimizer(self, model_index, optimizer_type=None):
         """
@@ -279,7 +279,12 @@ class Network(object):
         best_validation_loss = inf
 
         # Get the train loader from the data_x data_y
-        train_loader = self.get_loader(self.data_x, self.data_y)
+        if self.flags.bootstrap:
+            random_permutation = np.random.permutation(len(self.data_x))
+            index_end = int(self.flags.bootstrap * len(self.data_x))
+            train_loader = self.get_loader(self.data_x[random_permutation[:index_end]], self.data_y[random_permutation[:index_end]])
+        else:
+            train_loader = self.get_loader(self.data_x, self.data_y)
         val_loader = self.get_loader(self.val_x, self.val_y)
 
         cuda = True if torch.cuda.is_available() else False
@@ -436,8 +441,8 @@ class Network(object):
         Select the additional X from a pool (that is randomly generated)
         """
         pool_x = self.random_sample_X(self.flags.al_x_pool)                 # Generate some random samples for making the pool
-        if step_num != None:
-            print('in step {}, the sum of pool x is {}'.format(step_num, np.sum(pool_x)))
+        #if step_num != None:
+        #    print('in step {}, the sum of pool x is {}'.format(step_num, np.sum(pool_x)))
         pool_y = self.simulator(pool_x)
         pool_x_pred_y = self.ensemble_predict(pool_x)    # make ensemble predictions
         pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau = 0, 0, 0, 0     # in case it is not MSE based
@@ -463,13 +468,14 @@ class Network(object):
                 var_mse_coreff = np.corrcoef(pool_mse_models, pool_VAR)[0, 1]
                 # Calculate the Tau coeff
                 tau, p_value = stats.kendalltau(pool_mse_models, pool_VAR)
-                plt.scatter(pool_mse_models, pool_VAR,label='R={:.2f}'.format(var_mse_coreff))
+                plt.scatter(pool_mse_models, pool_VAR,label='R={:.2f} Tau={:.2f}'.format(var_mse_coreff, tau))
                 plt.xlabel('pool mse')
                 plt.ylabel('pool VAR')
                 plt.title('VAR_MSE correlation @ step {}'.format(step_num))
                 plt.legend()
+                if not os.path.isdir(save_dir):
+                    os.makedirs(save_dir)
                 plt.savefig(os.path.join(save_dir, 'VAR_MSE_correlation_step{}.png'.format(step_num)))
-
         elif self.flags.al_mode == 'Random':
             # Two ways of random, the first is to permute as below, however, this would interupt the random state of numpy, therefore for reproducibility we use the other
             # index = np.random.permutation(len(pool_x))
@@ -489,10 +495,10 @@ class Network(object):
                 for layer in module_list:
                     with torch.no_grad():
                         try:
-                            #layer.weight *= noise_factor
-                            #layer.bias *= noise_factor
-                            layer.weight += np.random.normal(0, noise_factor)
-                            layer.bias += np.random.normal(0, noise_factor)
+                            layer.weight *= noise_factor
+                            layer.bias *= noise_factor
+                            # layer.weight += np.random.normal(0, noise_factor)
+                            # layer.bias += np.random.normal(0, noise_factor)
                         except:
                             print('In add noise init, this is layer {}, this is not working'.format(layer))
         
@@ -510,15 +516,20 @@ class Network(object):
                 save_dir = 'results/fig/{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
                                                                             self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail)
             
+            # Make sure this is not missed
+            if not os.path.isdir(save_dir):
+                os.makedirs(save_dir)
+            
             # Adding the noise in the network prior
-            if al_step == 0:
-                self.add_noise_initialize()
+            # if al_step == 0:
+            #     self.add_noise_initialize()
 
             # reset weights for training
             if self.flags.reset_weight:
                 self.reset_params()
 
-            self.plot_both_plots(iteration_ind=al_step, save_dir=save_dir)                     # Get the trained model
+            if self.flags.plot:
+                self.plot_both_plots(iteration_ind=al_step, save_dir=save_dir)                     # Get the trained model
 
             # Train again here
             self.train()
@@ -565,29 +576,32 @@ class Network(object):
         """
         The plotting function for the post analysis
         """
-        f = plt.figure()
-        plt.plot(test_set_mse, '--x', alpha=0.3, linewidth=4,  label='test set')
-        plt.plot(train_set_mse, alpha=0.4, label='train set')
-        plt.plot(mse_selected_after_train, '--x', alpha=0.5, linewidth=2, label='selected after train')
-        
-        if self.flags.al_mode == 'MSE':
-            plt.plot(mse_pool, alpha=0.5, label='pool mse')
-            plt.plot(mse_selected_pool, alpha=0.5, label='selected in pool')
-        plt.legend()
-        plt.xlabel('iteration')
-        plt.ylabel('MSE')
-        plt.title('MSE comparison')
-        plt.savefig(os.path.join(save_dir, 'agg_mse_plot.png'))
-
-        # Plot the correlation points
-        if np.sum(var_mse_coreff_list) != 0:
-            f = plt.figure(figsize=[8, 4])
-            plt.plot(var_mse_coreff_list,label='R')
-            plt.plot(var_mse_tau, label='tau')
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        if self.flags.plot:
+            f = plt.figure()
+            plt.plot(test_set_mse, '--x', alpha=0.3, linewidth=4,  label='test set')
+            plt.plot(train_set_mse, alpha=0.4, label='train set')
+            plt.plot(mse_selected_after_train, '--x', alpha=0.5, linewidth=2, label='selected after train')
+            
+            if self.flags.al_mode == 'MSE':
+                plt.plot(mse_pool, alpha=0.5, label='pool mse')
+                plt.plot(mse_selected_pool, alpha=0.5, label='selected in pool')
+            plt.legend()
             plt.xlabel('iteration')
-            plt.ylabel('mse-var cor')
-            plt.legned()
-            plt.savefig(os.path.join(save_dir, 'mse_var_cor.png'))
+            plt.ylabel('MSE')
+            plt.title('MSE comparison')
+            plt.savefig(os.path.join(save_dir, 'agg_mse_plot.png'))
+
+            # Plot the correlation points
+            if np.sum(var_mse_coreff_list) != 0:
+                f = plt.figure(figsize=[8, 4])
+                plt.plot(var_mse_coreff_list,label='R')
+                plt.plot(var_mse_tau, label='tau')
+                plt.xlabel('iteration')
+                plt.ylabel('mse-var cor')
+                plt.legend()
+                plt.savefig(os.path.join(save_dir, 'mse_var_cor.png'))
 
         if save_raw_data:           # The option to save the raw data
             np.save(os.path.join(save_dir, 'test_mse'), test_set_mse)

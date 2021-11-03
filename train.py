@@ -53,25 +53,26 @@ def hyper_sweep_AL():
     The code to hyper-sweep the active learning
     """
     #num_train_upper = 15
-    num_train_upper = 200
-    for reset_weight in [True, False]:
+    num_train_upper = 2000
+    #for reset_weight in [True, False]:
     #for reset_weight in [False]:
-    #for reset_weight in [True]:
-        for al_mode in ['VAR']:
+    for reset_weight in [True]:
+        #for al_mode in ['VAR']:
         #for al_mode in ['Random']:
+        #for al_mode in ['MSE']:
         #for al_mode in ['VAR','Random','MSE']:
-        #for al_mode in ['MSE','Random']:
+        for al_mode in ['MSE','Random']:
             for al_n_step in [-1]:
             #for al_n_step in [20]:
-                for al_n_dx in [5]:
+                for al_n_dx in [50]:
                 #for al_n_dx in [1, 5, 10, 20, 50]:
-                    for al_n_x0 in [10]:
+                    for al_n_x0 in [20]:
                     #for al_n_x0 in [20, 50, 100, 200]:
-                        for al_x_pool_factor in [0.01]:       # The size of the pool divided by the number of points chosen
+                        for al_x_pool_factor in [0.25, 0.2]:       # The size of the pool divided by the number of points chosen
                         #for al_x_pool_factor in [0.1, 0.02]:       # The size of the pool divided by the number of points chosen
                         #for al_x_pool_factor in [0.01, 0.1, 0.2]:       # The size of the pool divided by the number of points chosen
-                            for n_models in [20]:
-                                for i in range(20):                                      # Total number of trails to aggregate
+                            for n_models in [10]:
+                                for i in range(10):                                      # Total number of trails to aggregate
                                     flags = flag_reader.read_flag()  	#setting the base case
                                     flags.reset_weight = reset_weight
                                     flags.al_n_model = n_models
@@ -87,14 +88,18 @@ def hyper_sweep_AL():
                                     # Set the plotting directory
                                     #flags.plot_dir = 'results/correlation_trail'
                                     #flags.plot_dir = 'results/prior_test'
-                                    #flags.plot_dir = 'results/30_sine_nmod'
-                                    flags.plot_dir = 'results/30_sine_nmod_20_add_noise_add_2'
+                                    #flags.plot_dir = 'results/30_sine_smaller_model_dx_1'
+                                    #flags.plot_dir = 'results/30_sine_nmod_20_shuffle_to500_dx_10_pool_mul_10'
+                                    flags.plot_dir = 'results/30_sine_nmod_{}_shuffle_to{}_dx_{}_pool_mul_{}'.format(n_models, num_train_upper, al_n_dx, int(1/al_x_pool_factor))
+                                    #flags.plot_dir = 'results/30_sine_nmod_20_bootstrap_0.9'
+                                    #flags.plot_dir = 'results/30_sine_nmod_5_trail_5'
+                                    #flags.plot_dir = 'results/30_sine_nmod_20_add_noise_add_2'
                                     #flags.plot_dir = 'results/single_model_30_sine'
                                     #flags.plot_dir = 'results/testing_random_state'
                                     
                                     # Fix the same random number generator state for the same experiments
-                                    hashed_random_seed = hash_random_seed(flags.reset_weight, flags.al_n_step, flags.al_n_dx, flags.al_n_x0, flags.al_x_pool, flags.al_n_model, trail=i)
-                                    np.random.seed(hashed_random_seed)
+                                    #flags.hashed_random_seed = hash_random_seed(flags.reset_weight, flags.al_n_step, flags.al_n_dx, flags.al_n_x0, flags.al_x_pool, flags.al_n_model, trail=i)
+                                    #np.random.seed(flags.hashed_random_seed)
 
                                     AL_from_flag(flags, trail=i)
 

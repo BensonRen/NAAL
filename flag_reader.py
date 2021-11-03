@@ -25,10 +25,12 @@ def read_flag():
     parser.add_argument('--al-mode', default=AL_MODE, type=str,  help='The Active Learning mode, MSE means using the true forward error')
     parser.add_argument('--al-x-pool', default=AL_X_POOL, type=int,  help='The pool of candidate X to be selected from')
     parser.add_argument('--al-test-n', default=AL_TEST_N, type=int,  help='The size of test set')
+    parser.add_argument('--bootstrap', default=BOOTSTRAP, type=float,  help='The percentage we bootstrap the data')
     parser.add_argument('--load-dataset', default=LOAD_DATASET, type=str,  help='Default None, if yes then load the dataset from that folder')
     parser.add_argument('--load-testset', default=LOAD_TESTSET, type=str,  help='Default None, if yes then load the testset from that folder')
     parser.add_argument('--reset-weight', default=RESET_WEIGHT, type=bool,  help='Whether we re-train the whole thing')
     parser.add_argument('--plot-dir', default=PLOT_DIR, type=str,  help='Default None, if yes then load the testset from that folder')
+    parser.add_argument('--plot', default=PLOT, type=str,  help='Default False, whether we plot the detailed plot or not')
     parser.add_argument('--plot-correlation-VAR-MSE', default=COR_VAR_MSE, type=bool,  help='Flag to plot the correlation scattering plot of the VAR and MSE correlation')
 
     

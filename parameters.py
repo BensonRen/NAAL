@@ -14,10 +14,12 @@ AL_MODE = 'MSE'     # The Active Learning mode, MSE means using the true forward
 #AL_MODE = 'VAR'     # The Active Learning mode, VAE means using the variance
 AL_TEST_N = 1000
 AL_X_POOL = 100
+BOOTSTRAP = 0     # Bootstraping the training dataset for each of the models during training
 LOAD_DATASET = None
 LOAD_TESTSET = None
 RESET_WEIGHT = False 
 COR_VAR_MSE = True
+PLOT = False
 PLOT_DIR = 'results/fig'
 
 # Dataset related parameters
@@ -28,7 +30,7 @@ DIM_X_LOW = [-30]
 DIM_X_HIGH = [30]
 
 # Model Architectural Params 
-LINEAR = [DIM_X, 20,  20, 20, 20, DIM_Y]
+LINEAR = [DIM_X, 20,  20, 20, DIM_Y]
 
 # Optimizer Params
 OPTIM = "Adam"
