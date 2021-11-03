@@ -14,8 +14,9 @@ sys.path.append('../utils/')
 # Own
 import flag_reader
 from class_wrapper import Network
-from model_maker import NA
+from model_maker import NA, NAAL
 import numpy as np
+
 
 def AL_from_flag(flags, trail=0):
     """
@@ -23,13 +24,15 @@ def AL_from_flag(flags, trail=0):
     :param flag: The training flags read from command line or parameter.py
     :return: None
     """
+    model_fn = NAAL if flags.naal else NA
     # Make Network
-    ntwk = Network(NA, flags)
+    ntwk = Network(model_fn, flags)
     # Active learning
     ntwk.active_learn(trail=trail)
 
 def AL_debug(flags):
-    ntwk = Network(NA, flags)
+    model_fn = NAAL if flags.naal else NA
+    ntwk = Network(model_fn, flags)
     ntwk.get_training_data_distribution(iteration_ind=-1)
     ntwk.plot_sine_debug_plot(iteration_ind=-1)
     ntwk.train()
@@ -106,6 +109,6 @@ def hyper_sweep_AL():
 if __name__ == '__main__':
     # Read the parameters to be set
     flags = flag_reader.read_flag()  	#setting the base case
-    #AL_from_flag(flags)
+    AL_from_flag(flags)
     #AL_debug(flags)
-    hyper_sweep_AL()
+    #hyper_sweep_AL()

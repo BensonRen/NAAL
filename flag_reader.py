@@ -17,6 +17,7 @@ def read_flag():
     :return: flags: a struct where all the input params are stored
     """
     parser = argparse.ArgumentParser()
+    parser.add_argument('--naal', default=NAAL, type=bool,  help=' whether we use NAAL method or not')
     # Active Learning related parameters
     parser.add_argument('--al-n-step', default=AL_N_STEP, type=int,  help=' #of steps of the datapoint')
     parser.add_argument('--al-n-dx', default=AL_N_dX, type=int,  help='# of data points to add at each step')

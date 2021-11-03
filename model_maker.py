@@ -43,3 +43,32 @@ class NA(nn.Module):
                 out = fc(out)                                           # For last layer, no activation function
         return out
 
+class NAAL(nn.Module):
+    """
+    The ensemble model of a number of networks
+    """
+    def __init__(self, flags):
+        super(NAAL, self).__init__()
+        self.sub_model_list = nn.ModuleList([])
+        self.nmod = flags.al_n_model
+        for i in range(self.nmod):
+            self.sub_model_list.append(NA(flags))
+    
+    def __getitem__(self, index):
+        """
+        The list like structure
+        """
+        if index >= 0:
+            return self.sub_model_list[index]
+        elif index == -1:
+            return self
+
+    def forward(self, G):
+        """
+        The forward model that takes all the models
+        """
+        output_mat = torch.zeros([self.nmod, *G.size()], device='cuda')
+        for ind, model in enumerate(self.sub_model_list):
+            output_mat[ind, :, :] = model(G)
+        return output_mat
+        

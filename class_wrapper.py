@@ -37,6 +37,7 @@ class Network(object):
     def __init__(self, model_fn, flags, ckpt_dir=os.path.join(os.path.abspath(''), 'models')):
         self.model_fn = model_fn                                # The model maker function
         self.flags = flags                                      # The Flags containing the specs    
+        self.naal = flags.naal
         if flags.model_name is None:                    # leave custume name if possible
             self.ckpt_dir = os.path.join(ckpt_dir, time.strftime('%Y%m%d_%H%M%S', time.localtime()))
             
@@ -179,7 +180,14 @@ class Network(object):
         """
         if logit is None:
             return None
-        MSE_loss = nn.functional.mse_loss(logit, labels)          # The MSE Loss
+        if self.naal:       # If NAAL, average all of them
+            MSE_loss = 0
+            for i in range(self.flags.al_n_model):
+                mse = nn.functional.mse_loss(logit[i, :, :], labels)
+                MSE_loss += mse
+                #logit = torch.mean(logit, axis=0)
+        else:
+            MSE_loss = nn.functional.mse_loss(logit, labels)          # The MSE Loss
         BDY_loss = 0
         if G is not None:         # This is using the boundary loss
             X_range, X_lower_bound, X_upper_bound = self.get_boundary_lower_bound_uper_bound()
@@ -271,7 +279,7 @@ class Network(object):
                                         map_location=torch.device('cpu')))
 
     def train_single(self, model_ind, verbose=False):
-        """
+        """ (finished naal)
         The major training function. This would start the training using information given in the flags
         :param model_ind: The index of the model that would like to train
         :return: None
@@ -351,12 +359,15 @@ class Network(object):
         #self.load_single(model_ind)
 
     def train(self):
-        """
+        """ (finished naal)
         Aggregate function of the training all models
         """
-        for i in range(self.n_model):
-            #print('training model ', i)
-            self.train_single(i)
+        if self.naal:
+            for i in range(self.n_model):
+                #print('training model ', i)
+                self.train_single(i)
+        else:
+            self.train_single(-1)
 
     def eval_model(self, model_ind, eval_X, eval_Y):
         """
@@ -369,7 +380,7 @@ class Network(object):
         return mse
 
     def pred_model(self, model_ind, test_X, output_numpy=False):
-        """
+        """ (finished naal)
         Output the prediction of model[model_ind]
         """
         # Get a tensor version of the test X instead of a numpy 
@@ -392,9 +403,12 @@ class Network(object):
         return Ypred
 
     def ensemble_predict_mat(self, test_X):
-        """
+        """ (finished naal)
         Get each model to predict and output a large matrix
         """
+        if self.naal:
+            return self.pred_model(-1, test_X, output_numpy=True)
+
         Ypred_mat = np.zeros([self.n_model, len(test_X), self.flags.dim_y])
         for i in range(self.n_model):
             Yp = self.pred_model(i, test_X, output_numpy=True)
@@ -614,7 +628,6 @@ class Network(object):
                 np.save(os.path.join(save_dir,'var_mse_coreff'), var_mse_coreff_list)
                 np.save(os.path.join(save_dir,'var_mse_tau'), var_mse_tau)
 
-
     def reset_params(self):
         """
         The funciton to reset all the trainable parameters
@@ -685,8 +698,6 @@ class Network(object):
             os.makedirs(save_dir)
         if fig_ax is None:
             plt.savefig(os.path.join(save_dir, 'sine_debug_plot_@iter_{}'.format(iteration_ind)))
-
-
 
     def plot_both_plots(self, iteration_ind, save_dir='results/fig'):
         #print('plotting debugging plots!')
