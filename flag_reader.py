@@ -32,13 +32,17 @@ def read_flag():
     parser.add_argument('--reset-weight', default=RESET_WEIGHT, type=bool,  help='Whether we re-train the whole thing')
     parser.add_argument('--plot-dir', default=PLOT_DIR, type=str,  help='Default None, if yes then load the testset from that folder')
     parser.add_argument('--plot', default=PLOT, type=str,  help='Default False, whether we plot the detailed plot or not')
-    parser.add_argument('--plot-correlation-VAR-MSE', default=COR_VAR_MSE, type=bool,  help='Flag to plot the correlation scattering plot of the VAR and MSE correlation')
-
+    parser.add_argument('--plot-correlation-VAR-MSE', default=PLOT_COR_VAR_MSE, type=bool,  help='Flag to plot the correlation scattering plot of the VAR and MSE correlation')
+    parser.add_argument('--naal-steps', default=NAAL_STEPS, type=int,  help='the number of steps that the naal is carried out')
+    parser.add_argument('--shuffle-each-model', default=SHUFFLE_EACH_MODEL, type=bool,  
+                    help='Default True, we shuffle training set before each model training')
+    
     
     # Data_Set parameter
     parser.add_argument('--data-set', default=DATA_SET, type=str, help='which data set you are chosing')
     parser.add_argument('--dim-x', default=DIM_X, type=int, help='Dim of X')
     parser.add_argument('--dim-y', default=DIM_Y, type=int, help='Dim of Y')
+    parser.add_argument('--freq', default=FREQ, type=float, help='Frequency of sine')
     parser.add_argument('--dim-x-low', default=DIM_X_LOW, type=list, help='The list of lower bound of x')
     parser.add_argument('--dim-x-high', default=DIM_X_HIGH, type=list, help='The list of higher bound of x')
 

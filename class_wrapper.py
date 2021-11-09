@@ -54,8 +54,12 @@ class Network(object):
 
         self.models = []
         # Creating the Committee
-        for i in range(flags.al_n_model):
-            self.models.append(self.create_model())                        # The model itself
+        if not self.naal:
+            for i in range(flags.al_n_model):
+                self.models.append(self.create_model())                        # The model itself
+        else:
+            self.models = [self.create_model()]
+        print('len of self.models = ', len(self.models))
         self.print_model_stats()                                # Print the stats
 
         # Setting up the simulator
@@ -79,6 +83,10 @@ class Network(object):
         #print('dtype of train y', self.data_y.dtype)
         print('finish initializaiton')
 
+        self.train_loss_tracker = [[] for i in range(self.n_model)]
+        self.test_loss_tracker = [[] for i in range(self.n_model)]
+        self.train_loss_tacker_epoch = [[] for i in range(self.n_model)]
+
     def print_model_stats(self):
         """
         print the model statistics and total number of trainable paramter
@@ -93,7 +101,17 @@ class Network(object):
         The function to initialize the simulator
         """
         if data_set == 'sine':
-            return np.sin
+            freq = self.flags.freq
+            def funct(x):
+                return np.sin(x * freq)
+        elif data_set == 'xsinx':
+            freq = self.flags.freq
+            def funct(x):
+                return x * np.sin(x * freq)
+        else:
+            print("Your gt function is not defined!")
+            exit()
+        return funct
 
     def scale_uniform_to_data_distribution(self, X):
         """
@@ -166,7 +184,27 @@ class Network(object):
         # summary(model, input_size=(128, 8))
         return model
 
-    def make_loss(self, logit=None, labels=None, G=None, return_long=False, epoch=None):
+    def make_na_loss(self, logit, G, epoch=None):
+        """
+        The loss that the neural adjoint method use to do back propagation
+        """
+        # Get the VAR loss
+        ensembled = torch.mean(logit, dim=0).unsqueeze(0).repeat(self.n_model, 1, 1)
+        var = -1 * nn.functional.mse_loss(logit, ensembled)
+
+        BDY_loss = 0
+        if G is not None:         # This is using the boundary loss
+            X_range, X_lower_bound, X_upper_bound = self.get_boundary_lower_bound_uper_bound()
+            X_mean = (X_lower_bound + X_upper_bound) / 2        # Get the mean
+            relu = torch.nn.ReLU()
+            BDY_loss_all = 1 * relu(torch.abs(G - self.build_tensor(X_mean)) - 0.5 * self.build_tensor(X_range))
+            BDY_loss = 0.1*torch.sum(BDY_loss_all)
+
+        self.Boundary_loss = BDY_loss
+        return torch.add(var, BDY_loss)
+
+
+    def make_loss(self, logit=None, labels=None, G=None, return_long=False, epoch=None, total_batch_num=1):
         """
         Create a tensor that represents the loss. This is consistant both at training time \
         and inference time for Backward model
@@ -180,25 +218,21 @@ class Network(object):
         """
         if logit is None:
             return None
-        if self.naal:       # If NAAL, average all of them
-            MSE_loss = 0
-            for i in range(self.flags.al_n_model):
-                mse = nn.functional.mse_loss(logit[i, :, :], labels)
-                MSE_loss += mse
+        if self.naal:       # If NAAL, average the MSE to get the overall MSE for backprop
+            # print(logit.size())
+            #print(labels.size())
+            # print('naal')
+            MSE_loss = nn.functional.mse_loss(logit, labels.unsqueeze(0).repeat(self.n_model, 1, 1))
+            # for i in range(self.flags.al_n_model):
+            #     mse = nn.functional.mse_loss(logit[i, :, :], labels)
+            #     MSE_loss += mse
                 #logit = torch.mean(logit, axis=0)
         else:
-            MSE_loss = nn.functional.mse_loss(logit, labels)          # The MSE Loss
-        BDY_loss = 0
-        if G is not None:         # This is using the boundary loss
-            X_range, X_lower_bound, X_upper_bound = self.get_boundary_lower_bound_uper_bound()
-            X_mean = (X_lower_bound + X_upper_bound) / 2        # Get the mean
-            relu = torch.nn.ReLU()
-            BDY_loss_all = 1 * relu(torch.abs(G - self.build_tensor(X_mean)) - 0.5 * self.build_tensor(X_range))
-            BDY_loss = 0.1*torch.sum(BDY_loss_all)
-
+            # print('not naal')
+            MSE_loss = nn.functional.mse_loss(logit, labels, reduction='mean')          # The MSE Loss
         self.MSE_loss = MSE_loss
-        self.Boundary_loss = BDY_loss
-        return torch.add(MSE_loss, BDY_loss)
+        #print(MSE_loss.cpu().detach().numpy())
+        return MSE_loss
 
     def build_tensor(self, nparray, requires_grad=False):
         return torch.tensor(nparray, requires_grad=requires_grad, device='cuda', dtype=torch.float)
@@ -215,26 +249,55 @@ class Network(object):
             DataSetClass = oned_nd
         else:
             DataSetClass = nd_oned
-        data = DataSetClass(data_x, data_y)
-        return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True)
+            
+        # shuffling process
+        if self.flags.shuffle_each_model:
+            shuffle_index = np.random.permutation(len(data_x))
+            data_x = data_x[shuffle_index]
+            data_y = data_y[shuffle_index]
 
-    def make_optimizer(self, model_index, optimizer_type=None):
-        """
+        data = DataSetClass(data_x, data_y)
+        # This is for solving the batch problem where the incomplete batch cause unstable training
+        # if len(data_x) > self.flags.batch_size:
+        #     return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True, drop_last=True)
+        # else:
+        #     return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True)#, drop_last=True)
+        
+        # return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True)#, drop_last=True)
+        return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=False)#, drop_last=True)
+
+    def make_optimizer(self, model_index, params=None, optimizer_type=None):
+        """ finished
         Make the corresponding optimizer from the flags. Only below optimizers are allowed. Welcome to add more
         :return:
         """
         # For eval mode to change to other optimizers
         if  optimizer_type is None:
             optimizer_type = self.flags.optim
+        # If the param is a parameter taking in
+        if params is None:
+            # THis is normal mode of training
+            #print('params is none, model_index = {}'.format(model_index))
+            params = self.models[model_index].parameters()
+            reg = self.flags.reg_scale
+        else:
+            # THis is NAAL part of the finding large variance
+            reg = 0
+        # print('wtf am I learning')
+        # print(params)
+        # print(self.flags.lr)
+        # print(self.models[0].parameters())
+        # print(self.models[1].parameters())
+        # print(self.models[2].parameters())
+        # print(self.models[3].parameters())
+        # print(self.models[4].parameters())
+
         if optimizer_type == 'Adam':
-            op = torch.optim.Adam(self.models[model_index].parameters(), lr=self.flags.lr,
-                                weight_decay=self.flags.reg_scale)
+            op = torch.optim.Adam(params, lr=self.flags.lr, weight_decay=reg)
         elif optimizer_type == 'RMSprop':
-            op = torch.optim.RMSprop(self.models[model_index].parameters(), lr=self.flags.lr, 
-                                weight_decay=self.flags.reg_scale)
+            op = torch.optim.RMSprop(params, lr=self.flags.lr, weight_decay=reg)
         elif optimizer_type == 'SGD':
-            op = torch.optim.SGD(self.models[model_index].parameters(), lr=self.flags.lr, 
-                                weight_decay=self.flags.reg_scale)
+            op = torch.optim.SGD(params, lr=self.flags.lr, weight_decay=reg)
         else:
             raise Exception("Your Optimizer is neither Adam, RMSprop or SGD, please change in param or contact Ben")
         return op
@@ -287,13 +350,17 @@ class Network(object):
         best_validation_loss = inf
 
         # Get the train loader from the data_x data_y
-        if self.flags.bootstrap:
+        if self.flags.bootstrap > 0:
+            print('bootstrping!')
             random_permutation = np.random.permutation(len(self.data_x))
             index_end = int(self.flags.bootstrap * len(self.data_x))
             train_loader = self.get_loader(self.data_x[random_permutation[:index_end]], self.data_y[random_permutation[:index_end]])
         else:
             train_loader = self.get_loader(self.data_x, self.data_y)
-        val_loader = self.get_loader(self.val_x, self.val_y)
+        
+        # Debugging, using the train set as the validation loader
+        #val_loader = self.get_loader(self.val_x, self.val_y)
+        val_loader = self.get_loader(self.data_x, self.data_y)
 
         cuda = True if torch.cuda.is_available() else False
         if cuda:
@@ -303,23 +370,49 @@ class Network(object):
         self.optm = self.make_optimizer(model_ind)
         self.lr_scheduler = self.make_lr_scheduler(self.optm)
 
+        total_batch_num = len(train_loader)
         for epoch in range(self.flags.train_step):
             # Set to Training Mode
             train_loss = 0
             self.models[model_ind].train()
+            self.optm.zero_grad()
             for j, (X, Y) in enumerate(train_loader):
+                # print('Epoch {} batch {}, size X {}, size Y {}'.format(epoch, j, X.size(), Y.size()))
                 if cuda:
                     X = X.cuda()                                    # Put data onto GPU
                     Y = Y.cuda()                                    # Put data onto GPU
-                self.optm.zero_grad()                               # Zero the gradient first
+                # if epoch == 0 and model_ind == 0:
+                #     print('batch = {}, size = {}'.format(j, len(X)))
+                # if X.size(0) < 0.5*self.flags.batch_size:
+                #     for name ,child in (self.models[model_ind].named_children()):
+                #         if name.find('BatchNorm') != -1:
+                #             for param in child.parameters():
+                #                 param.requires_grad = False
+                #         else:
+                #             for param in child.parameters():
+                #                 param.requires_grad = True 
+                #     if epoch == 0 and model_ind == 0:
+                #         print('switching to eval model for imcomplete batch of size {}'.format(X.size(0)))
+                #self.optm.zero_grad()                               # Zero the gradient first
                 logit = self.models[model_ind](X.float())                    # Get the output
-                loss = self.make_loss(logit, Y)                     # Get the loss tensor
+                loss = self.make_loss(logit, Y)# total_batch_num=total_batch_num)                     # Get the loss tensor
+                #loss /= total_batch_num
+                # print('Epoch {} batch {}, loss = {}'.format(epoch, j, loss.cpu().detach().numpy()))
                 loss.backward()                                     # Calculate the backward gradients
-                self.optm.step()                                    # Move one step the optimizer
-                train_loss += loss                                  # Aggregate the loss
+                train_loss += loss.cpu().data.numpy()                                  # Aggregate the loss
+            
+                # Batch effect debugging
+                self.optm.step()                                     # Move one step the optimizer
+                self.optm.zero_grad()
 
             # Calculate the avg loss of training
-            train_avg_loss = train_loss.cpu().data.numpy() / (j + 1)
+            train_avg_loss = train_loss / total_batch_num
+            
+            ##################################
+            # Debug 11.06 of the batch issue #
+            ##################################
+            self.train_loss_tracker[model_ind].append(train_avg_loss)
+            self.train_loss_tacker_epoch[model_ind].append(total_batch_num)
 
             if epoch % self.flags.eval_step == 0:                   # For eval steps, do the evaluations and tensor board
                 # Set to Evaluation Mode
@@ -337,6 +430,8 @@ class Network(object):
                 # Record the testing loss to the tensorboard
                 test_avg_loss = test_loss.cpu().data.numpy() / (j+1)
                 
+                # track the test loss
+                self.test_loss_tracker[model_ind].append(test_avg_loss)
                 if verbose:
                     print("For model %d, this is Epoch %d, training loss %.5f, validation loss %.5f" \
                         % (model_ind, epoch, train_avg_loss, test_avg_loss ))
@@ -362,12 +457,13 @@ class Network(object):
         """ (finished naal)
         Aggregate function of the training all models
         """
-        if self.naal:
+        if not self.naal:
             for i in range(self.n_model):
-                #print('training model ', i)
+                # print('training model ', i)
                 self.train_single(i)
         else:
-            self.train_single(-1)
+            # print('training model -1')
+            self.train_single(0)
 
     def eval_model(self, model_ind, eval_X, eval_Y):
         """
@@ -407,7 +503,8 @@ class Network(object):
         Get each model to predict and output a large matrix
         """
         if self.naal:
-            return self.pred_model(-1, test_X, output_numpy=True)
+            # print('doing ensemble predict for naal')
+            return self.pred_model(0, test_X, output_numpy=True)
 
         Ypred_mat = np.zeros([self.n_model, len(test_X), self.flags.dim_y])
         for i in range(self.n_model):
@@ -495,11 +592,39 @@ class Network(object):
             # index = np.random.permutation(len(pool_x))
             # The simplest random way, just the sequence itself
             index = range(len(pool_x))
+        elif self.flags.al_mode == 'NA':
+            """
+            The case where the Neural adjoint method is used for getting the additional output
+            """
+            # Initialize the raw pool
+            na_pool_raw = torch.rand([self.flags.al_n_dx, self.flags.dim_x], requires_grad=True, device='cuda')
+            # Get the pool to have training distribution
+            X_range, X_lower_bound, X_upper_bound = self.get_boundary_lower_bound_uper_bound()
+            na_pool = na_pool_raw * self.build_tensor(X_range) + self.build_tensor(X_lower_bound)
+            # Get the optimizer
+            self.optm_na = self.make_optimizer(model_index=0, params=[na_pool_raw])
+            self.lr_scheduler_na = self.make_lr_scheduler(self.optm_na)
+
+            # Start the back propagating process
+            for i in range(self.flags.naal_steps):
+                self.optm_na.zero_grad()
+                logit = self.models[0](na_pool)
+                loss = self.make_na_loss(logit, G=na_pool)
+                print('retaining graph')
+                loss.backward(retain_graph=True)
+                self.optm_na.step()
+            
+            # Finished the backprop, get the list
+            pool_x = na_pool.cpu().detach().numpy()
+            index = range(len(pool_x))
         else:
             print('Your Active Learning mode is wrong, check again!')
             quit()
         return pool_x[index[-self.flags.al_n_dx:]], pool_x_pred_y, pool_y, index, pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau
     
+    def build_tensor(self, nparray, requires_grad=False):
+        return torch.tensor(nparray, requires_grad=requires_grad, device='cuda', dtype=torch.float)
+
     def add_noise_initialize(self, noise_factor=2):
         """
         This function magnifies the noise for the initialized network by directly multiplying all the weights, since it is a non-linear system it is more noisy
@@ -524,10 +649,10 @@ class Network(object):
         # Active learning part
         for al_step in range(self.flags.al_n_step):
             try: 
-                save_dir = os.path.join(self.flags.plot_dir, '{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
+                save_dir = os.path.join(self.flags.plot_dir, '{}_{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set, self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
                                                                             self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail))
             except:
-                save_dir = 'results/fig/{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
+                save_dir = 'results/fig/{}_{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set, self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
                                                                             self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail)
             
             # Make sure this is not missed
@@ -542,14 +667,13 @@ class Network(object):
             if self.flags.reset_weight:
                 self.reset_params()
 
-            if self.flags.plot:
-                self.plot_both_plots(iteration_ind=al_step, save_dir=save_dir)                     # Get the trained model
-
             # Train again here
             self.train()
 
+            if self.flags.plot:
+                self.plot_both_plots(iteration_ind=al_step, save_dir=save_dir)                     # Get the trained model
+
             # Select the subset that is the best behaving
-            
             if al_step > 0:
                 mse_added = np.mean(self.ensemble_MSE(additional_X, self.simulator(additional_X)))
                 #print('after training, the MSE of the added X is ', mse_added)
@@ -582,6 +706,8 @@ class Network(object):
         # Plot the final Xtrain distribution
         self.get_training_data_distribution(iteration_ind='end', save_dir=save_dir)
         
+        self.plot_train_loss_tracker(save_dir=save_dir)
+
         # Make sure all the figures are closed
         plt.clf()
         
@@ -632,10 +758,19 @@ class Network(object):
         """
         The funciton to reset all the trainable parameters
         """
+        def weights_init(m):
+            if isinstance(m, nn.Linear):
+                # print('resetting weight')
+                torch.nn.init.xavier_uniform_(m.weight.data)
+
         for i in range(self.n_model):
-            for layer in self.models[i].children():
-                if hasattr(layer, 'reset_parameters'):
-                    layer.reset_parameters()
+            if self.naal and i > 0:
+                continue
+            self.models[i].apply(weights_init)
+            # for layer in self.models[i].children():
+            #     if hasattr(layer, 'reset_parameters'):
+            #         print('resetting weight')
+            #         layer.reset_parameters()
 
     #########################################################
     # The portion that is used to debug the training process#
@@ -674,6 +809,8 @@ class Network(object):
         all_y = self.simulator(all_x)
         #print('shape of all_y', np.shape(all_y))
         plt.plot(all_x, all_y, label='gt')
+        if len(self.data_x) <= 100:
+            plt.scatter(self.data_x, self.data_y,s=5)
         # Plot the predicted value and the uncertainty
         all_yp = self.ensemble_predict_mat(all_x)           # Get the matrix format of all_yp
         # plot each individual curves
@@ -706,6 +843,29 @@ class Network(object):
         self.plot_sine_debug_plot(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
         f.savefig(os.path.join(save_dir, 'both_plot_@iter_{}'.format(iteration_ind)))
         plt.cla()
+
+    def plot_train_loss_tracker(self, save_dir='results/fig'):
+        """
+        Debugging for 11.06
+        """
+        f = plt.figure(figsize=[10, 6])
+        ax = plt.subplot(211)
+        for i in range(self.n_model):
+            plt.plot(self.train_loss_tracker[i], 'b-', alpha=0.5)
+            plt.plot(self.test_loss_tracker[i], 'r--', alpha=0.5)
+        plt.yscale('log')
+        y_max = np.max(np.array([self.train_loss_tracker[i] for i in range(self.n_model)]))
+        y_min = np.min(np.array([self.train_loss_tracker[i] for i in range(self.n_model)]))
+        #plt.ylim([1e-3, 1])
+        #ax = plt.subplot(212)
+        data_num = np.array(range(self.flags.al_n_step)) * self.flags.al_n_dx + self.flags.al_n_x0
+        step_num = np.array(range(len(data_num))) * self.flags.train_step
+        for i in range(len(step_num)):
+            plt.plot([step_num[i], step_num[i]], [y_min, y_max],'--',label='num={}'.format(data_num[i]), alpha=0.1)
+        plt.legend()
+        #plt.plot(self.train_loss_tacker_epoch[0])
+        plt.title('bs_{}_retrain_{}'.format(self.flags.batch_size, self.flags.reset_weight))
+        f.savefig(os.path.join(save_dir, 'loss_tracker.png'), transparent=True)
 
 class nd_nd(Dataset):
     """ The simulated Dataset Class for regression purposes"""

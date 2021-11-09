@@ -23,7 +23,7 @@ class NA(nn.Module):
         self.bn_linears = nn.ModuleList([])
         for ind, fc_num in enumerate(flags.linear[0:-1]):               # Excluding the last one as we need intervals
             self.linears.append(nn.Linear(fc_num, flags.linear[ind + 1]))
-            self.bn_linears.append(nn.BatchNorm1d(flags.linear[ind + 1]))
+            self.bn_linears.append(nn.BatchNorm1d(flags.linear[ind + 1], momentum=0.01))
 
     def forward(self, G):
         """
@@ -36,8 +36,10 @@ class NA(nn.Module):
         # For the linear part
         for ind, (fc, bn) in enumerate(zip(self.linears, self.bn_linears)):
             if ind != len(self.linears) - 1:
-                #out = F.relu(bn(fc(out)))                                   # ReLU + BN + Linear
-                out = F.leaky_relu(bn(fc(out)))       
+                out = F.relu(bn(fc(out)))                                   # ReLU + BN + Linear
+                # out = F.relu(fc(out))
+                # out = F.leaky_relu(bn(fc(out)))       
+                # out = F.leaky_relu(fc(out))    
                 #print('out size', out.size())
             else:
                 out = fc(out)                                           # For last layer, no activation function
@@ -67,8 +69,11 @@ class NAAL(nn.Module):
         """
         The forward model that takes all the models
         """
-        output_mat = torch.zeros([self.nmod, *G.size()], device='cuda')
+        #output_mat = torch.zeros([self.nmod, *G.size()], device='cuda')
+        output_list = []
         for ind, model in enumerate(self.sub_model_list):
-            output_mat[ind, :, :] = model(G)
-        return output_mat
+            output_list.append(model(G))
+            #output_mat[ind, :, :] = model(G)
+        return torch.stack(output_list)
+        #return output_mat
         
