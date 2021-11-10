@@ -56,7 +56,7 @@ def hyper_sweep_AL():
     The code to hyper-sweep the active learning
     """
     #num_train_upper = 15
-    num_train_upper = 1000
+    num_train_upper = 600
     #for reset_weight in [True, False]:
     #for reset_weight in [False]:
     for reset_weight in [False]:
@@ -69,16 +69,20 @@ def hyper_sweep_AL():
             #for al_n_step in [20]:
                 for al_n_dx in [20]:
                 #for al_n_dx in [1, 5, 10, 20, 50]:
-                    for al_n_x0 in [100]:
+                    for al_n_x0 in [130]:
                     #for al_n_x0 in [20, 50, 100, 200]:
-                        #for al_x_pool_factor in [0.2]:       # The size of the pool divided by the number of points chosen
-                        for al_x_pool_factor in [0.1]:       # The size of the pool divided by the number of points chosen
+                        # for al_x_pool_factor in [0.2]:       # The size of the pool divided by the number of points chosen
+                        # for al_x_pool_factor in [0.1]:       # The size of the pool divided by the number of points chosen
+                        for al_x_pool_factor in [0.05]:       # The size of the pool divided by the number of points chosen
+                        #for al_x_pool_factor in [0.5, 0.1, 0.05]:       # The size of the pool divided by the number of points chosen
                             for n_models in [10]:
-                                #for i in range(5):                                      # Total number of trails to aggregate
-                                for i in range(5, 10):                                      # Total number of trails to aggregate
+                                # for i in range(2):                                      # Total number of trails to aggregate
+                                # for i in range(2, 4):                                      # Total number of trails to aggregate
+                                # for i in range(4, 6):                                      # Total number of trails to aggregate
+                                for i in range(6, 8):                                      # Total number of trails to aggregate
                                     flags = flag_reader.read_flag()  	#setting the base case
-                                    flags.freq = 50
-                                    flags.batch_size = 32
+                                    flags.freq = 30
+                                    flags.batch_size = 128
                                     flags.train_step = 500
                                     flags.reset_weight = reset_weight
                                     flags.al_n_model = n_models

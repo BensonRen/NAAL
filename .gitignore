@@ -19,4 +19,4 @@ __*
 
 #PID file
 pidfile*
- *.sh
+*.sh

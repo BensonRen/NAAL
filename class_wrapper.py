@@ -5,6 +5,7 @@ The class wrapper for the networks
 import os
 import time
 import sys
+from numpy.core.defchararray import add
 from numpy.lib.npyio import save
 
 from torch._C import dtype
@@ -60,7 +61,7 @@ class Network(object):
         else:
             self.models = [self.create_model()]
         print('len of self.models = ', len(self.models))
-        self.print_model_stats()                                # Print the stats
+        # self.print_model_stats()                                # Print the stats
 
         # Setting up the simulator
         self.simulator = self.init_simulator(self.flags.data_set)
@@ -86,6 +87,8 @@ class Network(object):
         self.train_loss_tracker = [[] for i in range(self.n_model)]
         self.test_loss_tracker = [[] for i in range(self.n_model)]
         self.train_loss_tacker_epoch = [[] for i in range(self.n_model)]
+
+        self.additional_X = None
 
     def print_model_stats(self):
         """
@@ -249,7 +252,7 @@ class Network(object):
             DataSetClass = oned_nd
         else:
             DataSetClass = nd_oned
-            
+
         # shuffling process
         if self.flags.shuffle_each_model:
             shuffle_index = np.random.permutation(len(data_x))
@@ -258,13 +261,13 @@ class Network(object):
 
         data = DataSetClass(data_x, data_y)
         # This is for solving the batch problem where the incomplete batch cause unstable training
-        # if len(data_x) > self.flags.batch_size:
-        #     return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True, drop_last=True)
-        # else:
-        #     return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True)#, drop_last=True)
+        if len(data_x) > self.flags.batch_size:
+            return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True, drop_last=True)
+        else:
+            return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True)#, drop_last=True)
         
         # return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True)#, drop_last=True)
-        return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=False)#, drop_last=True)
+        # return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=False)#, drop_last=True)
 
     def make_optimizer(self, model_index, params=None, optimizer_type=None):
         """ finished
@@ -359,8 +362,8 @@ class Network(object):
             train_loader = self.get_loader(self.data_x, self.data_y)
         
         # Debugging, using the train set as the validation loader
-        #val_loader = self.get_loader(self.val_x, self.val_y)
-        val_loader = self.get_loader(self.data_x, self.data_y)
+        val_loader = self.get_loader(self.val_x, self.val_y)
+        # val_loader = self.get_loader(self.data_x, self.data_y)
 
         cuda = True if torch.cuda.is_available() else False
         if cuda:
@@ -533,7 +536,7 @@ class Network(object):
         Ypred_mat = self.ensemble_predict_mat(test_X)
         mean_pred = np.mean(Ypred_mat, axis=0)
         var = np.mean(np.mean(np.square(Ypred_mat - mean_pred),axis=0), axis=-1)
-        print('the shape of the variance output is ', np.shape(var))
+        # print('the shape of the variance output is ', np.shape(var))
         return var, Ypred_mat
 
     def add_X_into_trainset(self, additional_X, additional_Y=None):
@@ -600,17 +603,21 @@ class Network(object):
             na_pool_raw = torch.rand([self.flags.al_n_dx, self.flags.dim_x], requires_grad=True, device='cuda')
             # Get the pool to have training distribution
             X_range, X_lower_bound, X_upper_bound = self.get_boundary_lower_bound_uper_bound()
-            na_pool = na_pool_raw * self.build_tensor(X_range) + self.build_tensor(X_lower_bound)
             # Get the optimizer
             self.optm_na = self.make_optimizer(model_index=0, params=[na_pool_raw])
             self.lr_scheduler_na = self.make_lr_scheduler(self.optm_na)
-
+            self.models[0].eval()
+            
             # Start the back propagating process
             for i in range(self.flags.naal_steps):
+                na_pool = na_pool_raw * self.build_tensor(X_range) + self.build_tensor(X_lower_bound)
+                # Calculate the VAR and see it going up
+                pool_VAR, pool_x_pred_y_mat = self.ensemble_VAR(na_pool.cpu().detach().numpy())
+                print('in NAAL, epoch {} VAR = {}'.format(i, np.mean(pool_VAR)))
                 self.optm_na.zero_grad()
                 logit = self.models[0](na_pool)
                 loss = self.make_na_loss(logit, G=na_pool)
-                print('retaining graph')
+                # print('retaining graph')
                 loss.backward(retain_graph=True)
                 self.optm_na.step()
             
@@ -649,11 +656,14 @@ class Network(object):
         # Active learning part
         for al_step in range(self.flags.al_n_step):
             try: 
-                save_dir = os.path.join(self.flags.plot_dir, '{}_{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set, self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
-                                                                            self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail))
+                save_dir = os.path.join(self.flags.plot_dir,
+                '{}_{}_retrain_{}_complexity_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set,
+                self.flags.al_mode, self.flags.reset_weight, len(self.flags.linear) - 2, self.flags.batch_size,self.flags.al_x_pool, 
+                self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail))
             except:
-                save_dir = 'results/fig/{}_{}_retrain_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set, self.flags.al_mode, self.flags.reset_weight, self.flags.batch_size,
-                                                                            self.flags.al_x_pool, self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail)
+                save_dir = 'results/fig/{}_{}_retrain_{}_complexity_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set, 
+                self.flags.al_mode, self.flags.reset_weight, len(self.flags.linear) - 2, self.flags.batch_size,self.flags.al_x_pool, self.flags.al_n_dx, 
+                self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail)
             
             # Make sure this is not missed
             if not os.path.isdir(save_dir):
@@ -690,6 +700,7 @@ class Network(object):
             
             # Put them into training set
             self.add_X_into_trainset(additional_X)
+            self.additional_X = additional_X 
             
             # Adding things to list for post processing
             test_set_mse.append(mse_test)
@@ -784,6 +795,8 @@ class Network(object):
         else:
             ax = plt.subplot(211)
         plt.hist(self.data_x, bins=100)
+        if self.additional_X is not None:
+            plt.hist(self.additional_X, bins=100, label='added', alpha=0.4)
         plt.xlim([self.flags.dim_x_low[0], self.flags.dim_x_high[0]])
         plt.xlabel('x')
         plt.ylabel('frequency')
@@ -850,13 +863,20 @@ class Network(object):
         """
         f = plt.figure(figsize=[10, 6])
         ax = plt.subplot(211)
-        for i in range(self.n_model):
+        if self.naal:
+            loop_num = 1
+        else:
+            loop_num = self.n_model
+        for i in range(loop_num):
             plt.plot(self.train_loss_tracker[i], 'b-', alpha=0.5)
             plt.plot(self.test_loss_tracker[i], 'r--', alpha=0.5)
         plt.yscale('log')
-        y_max = np.max(np.array([self.train_loss_tracker[i] for i in range(self.n_model)]))
-        y_min = np.min(np.array([self.train_loss_tracker[i] for i in range(self.n_model)]))
-        #plt.ylim([1e-3, 1])
+        y_max_list, y_min_list = [], []
+        for i in range(loop_num):
+            y_max_list.append(np.max(self.train_loss_tracker[i]))
+            y_min_list.append(np.min(self.train_loss_tracker[i]))
+        y_max = max(y_max_list)
+        y_min = min(y_min_list)
         #ax = plt.subplot(212)
         data_num = np.array(range(self.flags.al_n_step)) * self.flags.al_n_dx + self.flags.al_n_x0
         step_num = np.array(range(len(data_num))) * self.flags.train_step

@@ -75,12 +75,20 @@ if __name__ == '__main__':
     #hyper_sweep_AL()
     np.random.seed(0)
     torch.manual_seed(0)
-    flags.batch_size = 32
-    flags.data_set = 'xsinx'
+    flags.naal = True
+    flags.al_mode = 'NA'
+    # flags.al_mode = 'Random'
+    flags.batch_size = 500
     flags.eval_step = 1
-    flags.al_n_step = 1
+    flags.train_step = 500
+    num_hidden = 10
+    flags.learn_rate = 0.01
     flags.al_n_x0 = 100
-    flags.al_n_model = 2
+    flags.al_n_dx = 100
+    flags.data_set = 'xsinx'
+    flags.al_n_step = 5
+    flags.al_n_model = 5
+    flags.linear = [flags.dim_x] + [20 for i in range(num_hidden)] + [flags.dim_y]
     AL_from_flag(flags)
     #AL_debug(flags)
     print('time = {}s'.format(time.time() - start))
