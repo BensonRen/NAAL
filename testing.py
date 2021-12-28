@@ -76,18 +76,18 @@ if __name__ == '__main__':
     np.random.seed(0)
     torch.manual_seed(0)
     flags.naal = True
-    flags.al_mode = 'NA'
-    # flags.al_mode = 'Random'
-    flags.batch_size = 500
+    # flags.al_mode = 'MSE'
+    flags.al_mode = 'Random'
+    flags.batch_size = 128
     flags.eval_step = 1
-    flags.train_step = 500
     num_hidden = 10
-    flags.learn_rate = 0.01
+    flags.lr = 1e-3
+    flags.train_step = 1000
     flags.al_n_x0 = 100
     flags.al_n_dx = 100
     flags.data_set = 'xsinx'
-    flags.al_n_step = 5
-    flags.al_n_model = 5
+    flags.al_n_step = 3
+    flags.al_n_model = 2
     flags.linear = [flags.dim_x] + [20 for i in range(num_hidden)] + [flags.dim_y]
     AL_from_flag(flags)
     #AL_debug(flags)

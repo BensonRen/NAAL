@@ -23,7 +23,8 @@ class NA(nn.Module):
         self.bn_linears = nn.ModuleList([])
         for ind, fc_num in enumerate(flags.linear[0:-1]):               # Excluding the last one as we need intervals
             self.linears.append(nn.Linear(fc_num, flags.linear[ind + 1]))
-            self.bn_linears.append(nn.BatchNorm1d(flags.linear[ind + 1], momentum=0.01))
+            self.bn_linears.append(nn.BatchNorm1d(flags.linear[ind + 1]))#, momentum=0.01))
+            # self.bn_linears.append(nn.LayerNorm(flags.linear[ind + 1]))
 
     def forward(self, G):
         """

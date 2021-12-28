@@ -20,6 +20,7 @@ def read_flag():
     parser.add_argument('--naal', default=NAAL, type=bool,  help=' whether we use NAAL method or not')
     # Active Learning related parameters
     parser.add_argument('--al-n-step', default=AL_N_STEP, type=int,  help=' #of steps of the datapoint')
+    parser.add_argument('--al-n-step-cap', default=AL_N_STEP_CAP, type=int,  help=' The maximum number of steps for the AL to run')
     parser.add_argument('--al-n-dx', default=AL_N_dX, type=int,  help='# of data points to add at each step')
     parser.add_argument('--al-n-x0', default=AL_N_X0, type=int,  help='The starting size of the dataset')
     parser.add_argument('--al-n-model', default=AL_N_MODEL, type=int,  help='# of models')
@@ -33,16 +34,22 @@ def read_flag():
     parser.add_argument('--plot-dir', default=PLOT_DIR, type=str,  help='Default None, if yes then load the testset from that folder')
     parser.add_argument('--plot', default=PLOT, type=str,  help='Default False, whether we plot the detailed plot or not')
     parser.add_argument('--plot-correlation-VAR-MSE', default=PLOT_COR_VAR_MSE, type=bool,  help='Flag to plot the correlation scattering plot of the VAR and MSE correlation')
+    # NAAL related
     parser.add_argument('--naal-steps', default=NAAL_STEPS, type=int,  help='the number of steps that the naal is carried out')
+    parser.add_argument('--na-num-init', default=NA_NUM_INIT, type=int,  help='the number of initial point for NA method')
+    parser.add_argument('--na-md-radius', default=NA_MD_RADIUS, type=float,  help='radius of the md loss')
+    # parser.add_argument('--na-md-coeff', default=NA_MD_COEFF, type=float,  help='the coefficient of MD loss')
     parser.add_argument('--shuffle-each-model', default=SHUFFLE_EACH_MODEL, type=bool,  
                     help='Default True, we shuffle training set before each model training')
     
-    
+    # Stopping criteria
+    parser.add_argument('--stop-criteria-num', default=STOP_CRITERIA_NUM, type=int,  help='stopping criteria, the number of times we need to reach below testing MSE')
+    parser.add_argument('--mse-cutoff', default=MSE_CUTOFF, type=float, help='The cutoff value of the MSE')
+
     # Data_Set parameter
     parser.add_argument('--data-set', default=DATA_SET, type=str, help='which data set you are chosing')
     parser.add_argument('--dim-x', default=DIM_X, type=int, help='Dim of X')
     parser.add_argument('--dim-y', default=DIM_Y, type=int, help='Dim of Y')
-    parser.add_argument('--freq', default=FREQ, type=float, help='Frequency of sine')
     parser.add_argument('--dim-x-low', default=DIM_X_LOW, type=list, help='The list of lower bound of x')
     parser.add_argument('--dim-x-high', default=DIM_X_HIGH, type=list, help='The list of higher bound of x')
 

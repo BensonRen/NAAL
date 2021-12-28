@@ -56,42 +56,45 @@ def hyper_sweep_AL():
     The code to hyper-sweep the active learning
     """
     #num_train_upper = 15
-    num_train_upper = 600
-    #for reset_weight in [True, False]:
-    #for reset_weight in [False]:
+    num_train_upper = 2000
+    # for reset_weight in [True, False]:
     for reset_weight in [False]:
-        #for al_mode in ['Random']:
-        #for al_mode in ['VAR']:
-        #for al_mode in ['MSE']:
-        for al_mode in ['VAR','Random','MSE']:
-        #for al_mode in ['MSE','VAR']:
+    # for reset_weight in [False]:
+        # for al_mode in ['Random']:
+        for al_mode in ['NA']:
+        # for al_mode in ['VAR']:
+        # for al_mode in ['NAMD_POW']:
+        # for al_mode in ['MSE']:
+        #for al_mode in ['VAR','Random','MSE','NA']:
+        # for al_mode in ['MSE','VAR']:
+        #for al_mode in ['Random','NA']:
             for al_n_step in [-1]:
             #for al_n_step in [20]:
-                for al_n_dx in [20]:
+                for al_n_dx in [10]:
                 #for al_n_dx in [1, 5, 10, 20, 50]:
-                    for al_n_x0 in [130]:
+                    for al_n_x0 in [20]:
                     #for al_n_x0 in [20, 50, 100, 200]:
-                        # for al_x_pool_factor in [0.2]:       # The size of the pool divided by the number of points chosen
+                        for al_x_pool_factor in [0.05]:#, 0.1, 0.2, 0.25]:       # The size of the pool divided by the number of points chosen
+                        #for al_x_pool_factor in [0.25]:       # The size of the pool divided by the number of points chosen
                         # for al_x_pool_factor in [0.1]:       # The size of the pool divided by the number of points chosen
-                        for al_x_pool_factor in [0.05]:       # The size of the pool divided by the number of points chosen
+                        #for al_x_pool_factor in [0.05]:       # The size of the pool divided by the number of points chosen
                         #for al_x_pool_factor in [0.5, 0.1, 0.05]:       # The size of the pool divided by the number of points chosen
                             for n_models in [10]:
-                                # for i in range(2):                                      # Total number of trails to aggregate
-                                # for i in range(2, 4):                                      # Total number of trails to aggregate
-                                # for i in range(4, 6):                                      # Total number of trails to aggregate
-                                for i in range(6, 8):                                      # Total number of trails to aggregate
+                                ii = 0
+                                for i in range(ii, ii+1):                                      # Total number of trails to aggregate
+                                # for i in range(5):                                      # Total number of trails to aggregate
+                                # for i in range(5, 10):                                      # Total number of trails to aggregate
                                     flags = flag_reader.read_flag()  	#setting the base case
-                                    flags.freq = 30
-                                    flags.batch_size = 128
-                                    flags.train_step = 500
+                                    flags.batch_size = 5000
+                                    flags.train_step = 400
                                     flags.reset_weight = reset_weight
                                     flags.al_n_model = n_models
                                     flags.al_mode = al_mode
                                     # Get the actual al_step
-                                    if al_n_step == -1:
-                                        flags.al_n_step = (num_train_upper - al_n_x0) // al_n_dx
-                                    else:
-                                        flags.al_n_step = al_n_step
+                                    # if al_n_step == -1:
+                                    #     flags.al_n_step = (num_train_upper - al_n_x0) // al_n_dx
+                                    # else:
+                                    #     flags.al_n_step = al_n_step
                                     flags.al_n_dx = al_n_dx
                                     flags.al_n_x0 = al_n_x0
                                     flags.al_x_pool = int(al_n_dx / al_x_pool_factor)
@@ -101,8 +104,8 @@ def hyper_sweep_AL():
                                     #flags.plot_dir = 'results/30_sine_smaller_model_dx_1'
                                     #flags.plot_dir = 'results/30_sine_nmod_20_shuffle_to500_dx_10_pool_mul_10'
                                     #flags.plot_dir = 'results/30_sine_num_layer_{}_nmod_{}_to{}_dx_{}_pool_mul_{}'.format(len(flags.linear) - 2, n_models, num_train_upper, al_n_dx, int(1/al_x_pool_factor))
-                                    flags.plot_dir = 'results/{}_f_{}_num_layer_{}_nmod_{}_to{}_dx_{}_pool_mul_{}'.format(flags.data_set, flags.freq, len(flags.linear) - 2, n_models, 
-                                                                                                                    num_train_upper, al_n_dx, int(1/al_x_pool_factor))
+                                    flags.plot_dir = 'results/{}_num_layer_{}_nuron_{}_nmod_{}_toMSE_{}_dx_{}_pool_mul_{}_naal_{}'.format(flags.data_set, len(flags.linear) - 2, 
+                                                        flags.linear[1], n_models, flags.mse_cutoff, al_n_dx, int(1/al_x_pool_factor), flags.naal)
                                     #flags.plot_dir = 'results/30_sine_nmod_20_bootstrap_0.9'
                                     #flags.plot_dir = 'results/30_sine_nmod_5_trail_5'
                                     #flags.plot_dir = 'results/30_sine_nmod_20_add_noise_add_2'
@@ -110,8 +113,8 @@ def hyper_sweep_AL():
                                     #flags.plot_dir = 'results/testing_random_state'
                                     
                                     # Fix the same random number generator state for the same experiments
-                                    #flags.hashed_random_seed = hash_random_seed(flags.reset_weight, flags.al_n_step, flags.al_n_dx, flags.al_n_x0, flags.al_x_pool, flags.al_n_model, trail=i)
-                                    #np.random.seed(flags.hashed_random_seed)
+                                    flags.hashed_random_seed = hash_random_seed(flags.reset_weight, flags.al_n_step, flags.al_n_dx, flags.al_n_x0, flags.al_x_pool, flags.al_n_model, trail=i)
+                                    np.random.seed(flags.hashed_random_seed)
 
                                     AL_from_flag(flags, trail=i)
 

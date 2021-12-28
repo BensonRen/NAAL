@@ -8,8 +8,11 @@ import sys
 from numpy.core.defchararray import add
 from numpy.lib.npyio import save
 
+import pickle
 from torch._C import dtype
-sys.path.append('../utils/')
+# sys.path.append('../utils/')
+
+from forward_models import simulator
 
 # Torch
 import torch
@@ -41,7 +44,6 @@ class Network(object):
         self.naal = flags.naal
         if flags.model_name is None:                    # leave custume name if possible
             self.ckpt_dir = os.path.join(ckpt_dir, time.strftime('%Y%m%d_%H%M%S', time.localtime()))
-            
         else:
             self.ckpt_dir = os.path.join(ckpt_dir, flags.model_name)
         # Make this directory
@@ -52,6 +54,7 @@ class Network(object):
         self.optm = None                                        # The optimizer: Initialized at train() due to GPU
         self.lr_scheduler = None                                # The lr scheduler: Initialized at train() due to GPU
         self.n_model = flags.al_n_model                         # Save the number of models for quick reference
+        self.dataset = flags.data_set                            # The dataset name 
 
         self.models = []
         # Creating the Committee
@@ -64,7 +67,8 @@ class Network(object):
         # self.print_model_stats()                                # Print the stats
 
         # Setting up the simulator
-        self.simulator = self.init_simulator(self.flags.data_set)
+        # self.simulator = self.init_simulator(self.flags.data_set)
+        self.simulator = simulator
 
         # Creating the training dataset
         if flags.load_dataset is None:
@@ -99,22 +103,26 @@ class Network(object):
         pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print("Total Number of Parameters: {}".format(pytorch_total_params))
 
-    def init_simulator(self, data_set):
-        """
-        The function to initialize the simulator
-        """
-        if data_set == 'sine':
-            freq = self.flags.freq
-            def funct(x):
-                return np.sin(x * freq)
-        elif data_set == 'xsinx':
-            freq = self.flags.freq
-            def funct(x):
-                return x * np.sin(x * freq)
-        else:
-            print("Your gt function is not defined!")
-            exit()
-        return funct
+    # def init_simulator(self, data_set):
+    #     """
+    #     The function to initialize the simulator
+    #     """
+    #     if data_set == 'sine':
+    #         freq = self.flags.freq
+    #         def funct(x):
+    #             return np.sin(x * freq)
+    #     elif data_set == 'xsinx':
+    #         freq = self.flags.freq
+    #         def funct(x):
+    #             return x * np.sin(x * freq)
+    #     elif data_set == 'xsinsinx':
+    #         freq = self.flags.freq
+    #         def funct(x):
+    #             return x * np.sin(3 * np.sin(x * freq))
+    #     else:
+    #         print("Your gt function is not defined!")
+    #         exit()
+    #     return funct
 
     def scale_uniform_to_data_distribution(self, X):
         """
@@ -154,7 +162,7 @@ class Network(object):
         """
         # Get the initialized x
         data_x = self.random_sample_X(num)
-        data_y = self.simulator(data_x)
+        data_y = self.simulator(self.dataset, data_x)
         return data_x, data_y
 
     def save_dataset(self, save_name=None, testset=False):
@@ -177,6 +185,20 @@ class Network(object):
         The function to load the dataset
         """
         return np.load(os.path.join(load_dataset, 'data_x.npy')),  np.load(os.path.join(load_dataset, 'data_y.npy'))
+    
+    def save_flags(flags, save_dir, save_file="flags.obj"):
+        """
+        This function serialize the flag object and save it for further retrieval during inference time
+        :param flags: The flags object to save
+        :param save_file: The place to save the file
+        :return: None
+        """
+        flags_dict = vars(flags)
+        # Convert the dictionary into pandas data frame which is easier to handle with and write read
+        with open(os.path.join(save_dir, 'parameters.txt'), 'w') as f:
+            print(flags_dict, file=f)
+        with open(os.path.join(save_dir, save_file),'wb') as f:          # Open the file
+            pickle.dump(flags, f)               # Use Pickle to serialize the object
 
     def create_model(self):
         """
@@ -187,7 +209,7 @@ class Network(object):
         # summary(model, input_size=(128, 8))
         return model
 
-    def make_na_loss(self, logit, G, epoch=None):
+    def make_na_loss(self, logit, G, epoch=None, md=False):
         """
         The loss that the neural adjoint method use to do back propagation
         """
@@ -201,11 +223,25 @@ class Network(object):
             X_mean = (X_lower_bound + X_upper_bound) / 2        # Get the mean
             relu = torch.nn.ReLU()
             BDY_loss_all = 1 * relu(torch.abs(G - self.build_tensor(X_mean)) - 0.5 * self.build_tensor(X_range))
-            BDY_loss = 0.1*torch.sum(BDY_loss_all)
-
+            BDY_loss = torch.sum(BDY_loss_all)
+        if md:
+            pairwise_dist_mat = torch.cdist(G, G, p=2)      # Calculate the pairwise distance
+            MD_loss = torch.mean(torch.exp(-pairwise_dist_mat*50))
+            # MD_loss = torch.mean(torch.pow((1/self.flags.na_md_radius)*relu(- pairwise_dist_mat + self.flags.na_md_radius)+1, 4)-1)       # The soft sphere exponential
+            # MD_loss = torch.mean(relu(1/(pairwise_dist_mat + 1e-6) - 1/self.flags.na_md_radius))       # The soft sphere inverse potential model
+            # MD_loss *= self.flags.na_md_coeff
+            # Calculate the ratio of var loss and md loss
+            with torch.no_grad():
+                if MD_loss > 0:
+                    var_md_loss_ratio = torch.abs(var/MD_loss)*50
+                else:
+                    var_md_loss_ratio = 1
+            MD_loss *= var_md_loss_ratio
+            # print('var loss = {}, MD_loss = {}, ratio = {} , BDY_loss = {}'.format(var, MD_loss, var_md_loss_ratio, BDY_loss))
+            return var + BDY_loss + MD_loss, var, MD_loss/var_md_loss_ratio, BDY_loss # ALL LOSS
+            # return BDY_loss + MD_loss, var, MD_loss/var_md_loss_ratio, BDY_loss  # Diversity only!!!
         self.Boundary_loss = BDY_loss
-        return torch.add(var, BDY_loss)
-
+        return torch.add(var, BDY_loss), 0, 0, 0
 
     def make_loss(self, logit=None, labels=None, G=None, return_long=False, epoch=None, total_batch_num=1):
         """
@@ -261,13 +297,12 @@ class Network(object):
 
         data = DataSetClass(data_x, data_y)
         # This is for solving the batch problem where the incomplete batch cause unstable training
-        if len(data_x) > self.flags.batch_size:
-            return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True, drop_last=True)
-        else:
-            return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True)#, drop_last=True)
+        # if len(data_x) > self.flags.batch_size:
+        #     return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=False, drop_last=True)
+        # else:
+        #     return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=False)#, drop_last=True)
         
-        # return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=True)#, drop_last=True)
-        # return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=False)#, drop_last=True)
+        return torch.utils.data.DataLoader(data, batch_size=self.flags.batch_size, shuffle=False)#, drop_last=True)
 
     def make_optimizer(self, model_index, params=None, optimizer_type=None):
         """ finished
@@ -283,8 +318,10 @@ class Network(object):
             #print('params is none, model_index = {}'.format(model_index))
             params = self.models[model_index].parameters()
             reg = self.flags.reg_scale
+            lr = self.flags.lr
         else:
             # THis is NAAL part of the finding large variance
+            lr = 0.01
             reg = 0
         # print('wtf am I learning')
         # print(params)
@@ -296,11 +333,11 @@ class Network(object):
         # print(self.models[4].parameters())
 
         if optimizer_type == 'Adam':
-            op = torch.optim.Adam(params, lr=self.flags.lr, weight_decay=reg)
+            op = torch.optim.Adam(params, lr=lr, weight_decay=reg)
         elif optimizer_type == 'RMSprop':
-            op = torch.optim.RMSprop(params, lr=self.flags.lr, weight_decay=reg)
+            op = torch.optim.RMSprop(params, lr=lr, weight_decay=reg)
         elif optimizer_type == 'SGD':
-            op = torch.optim.SGD(params, lr=self.flags.lr, weight_decay=reg)
+            op = torch.optim.SGD(params, lr=lr, weight_decay=reg)
         else:
             raise Exception("Your Optimizer is neither Adam, RMSprop or SGD, please change in param or contact Ben")
         return op
@@ -546,7 +583,7 @@ class Network(object):
         """
         # Simulate Y if it is not provided
         if additional_Y is None:
-            additional_Y = self.simulator(additional_X)
+            additional_Y = self.simulator(self.dataset, additional_X)
         self.data_x = np.concatenate([self.data_x, additional_X])
         self.data_y = np.concatenate([self.data_y, additional_Y])
 
@@ -557,7 +594,7 @@ class Network(object):
         pool_x = self.random_sample_X(self.flags.al_x_pool)                 # Generate some random samples for making the pool
         #if step_num != None:
         #    print('in step {}, the sum of pool x is {}'.format(step_num, np.sum(pool_x)))
-        pool_y = self.simulator(pool_x)
+        pool_y = self.simulator(self.dataset, pool_x)
         pool_x_pred_y = self.ensemble_predict(pool_x)    # make ensemble predictions
         pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau = 0, 0, 0, 0     # in case it is not MSE based
         if self.flags.al_mode == 'MSE':
@@ -595,12 +632,12 @@ class Network(object):
             # index = np.random.permutation(len(pool_x))
             # The simplest random way, just the sequence itself
             index = range(len(pool_x))
-        elif self.flags.al_mode == 'NA':
+        elif 'NA' in self.flags.al_mode:
             """
             The case where the Neural adjoint method is used for getting the additional output
             """
             # Initialize the raw pool
-            na_pool_raw = torch.rand([self.flags.al_n_dx, self.flags.dim_x], requires_grad=True, device='cuda')
+            na_pool_raw = torch.rand([self.flags.na_num_init, self.flags.dim_x], requires_grad=True, device='cuda')
             # Get the pool to have training distribution
             X_range, X_lower_bound, X_upper_bound = self.get_boundary_lower_bound_uper_bound()
             # Get the optimizer
@@ -608,22 +645,56 @@ class Network(object):
             self.lr_scheduler_na = self.make_lr_scheduler(self.optm_na)
             self.models[0].eval()
             
+            # MD switch
+            if 'MD' in self.flags.al_mode:
+                md = True
+            else:
+                md = False
+            
+            # Record the different losses
+            var_loss_list, md_loss_list, bdy_loss_list = [], [], []
+
             # Start the back propagating process
             for i in range(self.flags.naal_steps):
                 na_pool = na_pool_raw * self.build_tensor(X_range) + self.build_tensor(X_lower_bound)
                 # Calculate the VAR and see it going up
-                pool_VAR, pool_x_pred_y_mat = self.ensemble_VAR(na_pool.cpu().detach().numpy())
-                print('in NAAL, epoch {} VAR = {}'.format(i, np.mean(pool_VAR)))
+                # pool_VAR, pool_x_pred_y_mat = self.ensemble_VAR(na_pool.cpu().detach().numpy())
+                # print('in NAAL, epoch {} VAR = {}'.format(i, np.mean(pool_VAR)))
                 self.optm_na.zero_grad()
                 logit = self.models[0](na_pool)
-                loss = self.make_na_loss(logit, G=na_pool)
+                loss, var_loss, md_loss, bdy_loss = self.make_na_loss(logit, G=na_pool, md=md)
                 # print('retaining graph')
                 loss.backward(retain_graph=True)
                 self.optm_na.step()
+
+                # Debugging purpose code:
+                # print('debugging in NAMD backproping')
+                if md:
+                    var_loss_list.append(var_loss.detach().cpu().numpy())
+                    md_loss_list.append(md_loss.detach().cpu().numpy())
+                    bdy_loss_list.append(bdy_loss.detach().cpu().numpy())
+                # print(logit)
             
+            if md: # Some diagonostics for NAMD method for plotting
+                # Plot the loss
+                f = plt.figure()
+                ax = plt.subplot(211)
+                plt.plot(var_loss_list,label='var')
+                plt.legend()
+                ax = plt.subplot(212)
+                plt.plot(md_loss_list,label='md')
+                plt.legend()
+                plt.savefig(os.path.join(save_dir, 'NAMD backprop at step {} .png'.format(step_num)))
+
             # Finished the backprop, get the list
             pool_x = na_pool.cpu().detach().numpy()
-            index = range(len(pool_x))
+            ensembled = torch.mean(logit, dim=0).unsqueeze(0).repeat(self.n_model, 1, 1)
+            var = nn.functional.mse_loss(logit, ensembled, reduction='none').cpu().detach().numpy()
+            # print('var size', np.shape(var))
+            var = np.reshape(np.mean(var, axis=0), [-1, ])
+            # print('after var size', np.shape(var))
+            index = np.argsort(var)        # Choosing the best k ones
+            # index = range(len(pool_x))
         else:
             print('Your Active Learning mode is wrong, check again!')
             quit()
@@ -654,7 +725,9 @@ class Network(object):
         """
         test_set_mse, train_set_mse, mse_pool, mse_selected_pool, mse_selected_after_train, var_mse_coreff_list, var_mse_tau = [], [], [], [], [], [], []
         # Active learning part
-        for al_step in range(self.flags.al_n_step):
+        al_step, num_good_to_stop = 0, 0    # Initialize some looping variables
+        while num_good_to_stop < self.flags.stop_criteria_num and al_step < self.flags.al_n_step_cap:
+        #for al_step in range(self.flags.al_n_step):
             try: 
                 save_dir = os.path.join(self.flags.plot_dir,
                 '{}_{}_retrain_{}_complexity_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set,
@@ -685,7 +758,7 @@ class Network(object):
 
             # Select the subset that is the best behaving
             if al_step > 0:
-                mse_added = np.mean(self.ensemble_MSE(additional_X, self.simulator(additional_X)))
+                mse_added = np.mean(self.ensemble_MSE(additional_X, self.simulator(self.dataset, additional_X)))
                 #print('after training, the MSE of the added X is ', mse_added)
                 mse_selected_after_train.append(mse_added)
             
@@ -694,7 +767,7 @@ class Network(object):
             mse_test = np.mean(self.ensemble_MSE(self.test_X, self.test_Y))
             print('AL step {}, current train set size = {}, train set mse = {}, test set mse = {}, the AL_mode is {}, retrain = {}'.format(al_step, 
                     len(self.data_x), mse_train, mse_test, self.flags.al_mode, self.flags.reset_weight))
-
+            
             # First we select the additional X
             additional_X, pool_x_pred_y, pool_y, index, pool_mse, pool_chosen_mse, var_mse_coreff, tau = self.get_additional_X(save_dir=save_dir, step_num=al_step)
             
@@ -709,6 +782,17 @@ class Network(object):
             mse_selected_pool.append(pool_chosen_mse)
             var_mse_coreff_list.append(var_mse_coreff)
             var_mse_tau.append(tau)
+            plt.close('all')
+
+            # Stopping control
+            al_step += 1
+            
+            # Compare with stopping criteria, if it is lower than the stopping criteria, shout out and add the stop count
+            if mse_test < self.flags.mse_cutoff:
+                num_good_to_stop += 1
+                print('Bingo! @AL step {} your network test error is {}, better than stopping criteria {},\
+                     this is the {}-th time'.format(al_step, mse_test, self.flags.mse_cutoff, num_good_to_stop))
+            
            
         # Plot the post analysis plots
         self.plot_analysis_mses(test_set_mse, train_set_mse, mse_pool, mse_selected_pool, 
@@ -719,8 +803,11 @@ class Network(object):
         
         self.plot_train_loss_tracker(save_dir=save_dir)
 
+        # Save the flag for record purpose
+        self.save_flags(save_dir)
+
         # Make sure all the figures are closed
-        plt.clf()
+        plt.close('all')
         
     def plot_analysis_mses(self, test_set_mse, train_set_mse, mse_pool, mse_selected_pool, 
                         mse_selected_after_train, var_mse_coreff_list, var_mse_tau, save_dir, save_raw_data=True):
@@ -805,6 +892,8 @@ class Network(object):
             os.makedirs(save_dir)
         if fig_ax is None:
             plt.savefig(os.path.join(save_dir, 'train_distribution_@iter_{}'.format(iteration_ind)))
+        # Save the data_x distribution into numpy file
+        np.savetxt(os.path.join(save_dir, 'final_x.npy'), self.data_x)
 
     def plot_sine_debug_plot(self, iteration_ind, save_dir, fig_ax=None):
         """
@@ -819,7 +908,7 @@ class Network(object):
                                         self.flags.dim_x_high, 
                                         1000, dtype=np.float), [-1,1])
         #print('shape of all_x', np.shape(all_x))
-        all_y = self.simulator(all_x)
+        all_y = self.simulator(self.dataset, all_x)
         #print('shape of all_y', np.shape(all_y))
         plt.plot(all_x, all_y, label='gt')
         if len(self.data_x) <= 100:
