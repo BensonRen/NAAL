@@ -30,20 +30,23 @@ PLOT_DIR = 'results/fig/naal_test'
 STOP_CRITERIA_NUM = 5
 
 # Dataset related parameters
-DATA_SET = 'sine'
-MSE_CUTOFF = 1e-3
-NA_NUM_INIT = 100
-AL_N_dX = 10       # The number of data points to add at each step
-AL_N_X0 = 40      # The starting size of the dataset
-DIM_X = 1
-DIM_Y = 1
-
-# DATA_SET = 'robo'
+# DATA_SET = 'sine'
 # MSE_CUTOFF = 1e-3
-# AL_N_dX = 20       # The number of data points to add at each step
-# AL_N_X0 = 1000       # The starting size of the dataset
-# DIM_X = 4
-# DIM_Y = 2
+# NA_NUM_INIT = 100
+# AL_N_dX = 10       # The number of data points to add at each step
+# AL_N_X0 = 40      # The starting size of the dataset
+# DIM_X = 1
+# DIM_Y = 1
+# LINEAR = [DIM_X, 20,  20, 20, 20, 20, 20, 20, 20, 20, DIM_Y]
+
+DATA_SET = 'robo'
+MSE_CUTOFF = 1e-3
+NA_NUM_INIT = 200
+AL_N_dX = 20       # The number of data points to add at each step
+AL_N_X0 = 1000       # The starting size of the dataset
+DIM_X = 4
+DIM_Y = 2
+LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
 
 # DATA_SET = 'meta'
 # MSE_CUTOFF = 1e-3
@@ -57,7 +60,6 @@ DIM_X_HIGH = [1]
 # FREQ = 30
 
 # Model Architectural Params 
-LINEAR = [DIM_X, 20,  20, 20, 20, 20, 20, 20, 20, 20, DIM_Y]
 
 # Optimizer Params
 OPTIM = "Adam"

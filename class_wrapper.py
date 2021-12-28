@@ -435,7 +435,7 @@ class Network(object):
                 #         print('switching to eval model for imcomplete batch of size {}'.format(X.size(0)))
                 #self.optm.zero_grad()                               # Zero the gradient first
                 logit = self.models[model_ind](X.float())                    # Get the output
-                loss = self.make_loss(logit, Y)# total_batch_num=total_batch_num)                     # Get the loss tensor
+                loss = self.make_loss(logit, Y.float())# total_batch_num=total_batch_num)                     # Get the loss tensor
                 #loss /= total_batch_num
                 # print('Epoch {} batch {}, loss = {}'.format(epoch, j, loss.cpu().detach().numpy()))
                 loss.backward()                                     # Calculate the backward gradients
@@ -691,8 +691,9 @@ class Network(object):
             ensembled = torch.mean(logit, dim=0).unsqueeze(0).repeat(self.n_model, 1, 1)
             var = nn.functional.mse_loss(logit, ensembled, reduction='none').cpu().detach().numpy()
             # print('var size', np.shape(var))
-            var = np.reshape(np.mean(var, axis=0), [-1, ])
+            var = np.reshape(np.mean(np.mean(var, axis=0), axis=-1), [-1, ])
             # print('after var size', np.shape(var))
+            # print('shape of pool', np.shape(pool_x))
             index = np.argsort(var)        # Choosing the best k ones
             # index = range(len(pool_x))
         else:
@@ -942,7 +943,8 @@ class Network(object):
         #print('plotting debugging plots!')
         f = plt.figure(figsize=[10, 6])
         self.get_training_data_distribution(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
-        self.plot_sine_debug_plot(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
+        if 'sin' in self.flags.data_set:
+            self.plot_sine_debug_plot(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
         f.savefig(os.path.join(save_dir, 'both_plot_@iter_{}'.format(iteration_ind)))
         plt.cla()
 

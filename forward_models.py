@@ -12,7 +12,8 @@ def simulator(dataset, x):
         return x * np.sin(3 * np.sin(x * 30))       #  1D Dataset, Y = x*sin(3*sine(30*x))
     elif 'rob' in dataset:
         # Robotic dataset:   4D -> 2D
-        assert np.shape(x)[1] == 4, 'Your dimension of x input in the simulator, robotic dataset is wrong!!'
+        assert np.shape(x)[1] == 4, 'Your dimension of x input in the simulator, \
+                robotic dataset is wrong!! currently it has shape {}'.format(np.shape(x))
         arm_len = [0.5, 0.5, 1]
         y = np.zeros([len(x), 2])   # Initialize the y dimensional matrix
         y[:, 1]  = x[:, 0]          # The first dimension of the x is the original y value
