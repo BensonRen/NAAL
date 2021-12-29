@@ -505,7 +505,7 @@ class Network(object):
                 # print('training model ', i)
                 self.train_single(i)
         else:
-            print('training model 0')
+            # print('training model 0')
             self.train_single(0)
 
     def eval_model(self, model_ind, eval_X, eval_Y):
@@ -723,7 +723,7 @@ class Network(object):
         else:
             print('Your Active Learning mode is wrong, check again!')
             quit()
-        return pool_x[index[-self.flags.al_n_dx:]], pool_x_pred_y, pool_y, index, pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau
+        return pool_x[index[-self.flags.al_n_dx:]], pool_y[index[-self.flags.al_n_dx:]], pool_x_pred_y, pool_y, index, pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau
     
     def build_tensor(self, nparray, requires_grad=False):
         return torch.tensor(nparray, requires_grad=requires_grad, device='cuda', dtype=torch.float)
@@ -794,10 +794,10 @@ class Network(object):
                     len(self.data_x), mse_train, mse_test, self.flags.al_mode, self.flags.reset_weight))
             
             # First we select the additional X
-            additional_X, pool_x_pred_y, pool_y, index, pool_mse, pool_chosen_mse, var_mse_coreff, tau = self.get_additional_X(save_dir=save_dir, step_num=al_step)
+            additional_X, additional_Y, pool_x_pred_y, pool_y, index, pool_mse, pool_chosen_mse, var_mse_coreff, tau = self.get_additional_X(save_dir=save_dir, step_num=al_step)
             
             # Put them into training set
-            self.add_X_into_trainset(additional_X)
+            self.add_X_into_trainset(additional_X, additional_Y)
             self.additional_X = additional_X 
             
             # Adding things to list for post processing

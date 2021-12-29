@@ -41,24 +41,28 @@ STOP_CRITERIA_NUM = 5
 # if AL_MODE == 'Dropout':
 #     LINEAR = [DIM_X, 60,  60, 60, 60, 60, 60, 60, 60, 60 DIM_Y]
 
-DATA_SET = 'robo'
-MSE_CUTOFF = 1e-4
-NA_NUM_INIT = 100
-AL_N_dX = 10       # The number of data points to add at each step
-AL_N_X0 = 40       # The starting size of the dataset
-DIM_X = 4
-DIM_Y = 2
-LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
-if AL_MODE == 'Dropout':
-    LINEAR = [DIM_X, 1500, 1500, 1500, 1500, DIM_Y]
+# DATA_SET = 'robo'
+# MSE_CUTOFF = 1e-4
+# NA_NUM_INIT = 100
+# AL_N_dX = 10       # The number of data points to add at each step
+# AL_N_X0 = 40       # The starting size of the dataset
+# DIM_X = 4
+# DIM_Y = 2
+# LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
+# if AL_MODE == 'Dropout':
+#     LINEAR = [DIM_X, 1500, 1500, 1500, 1500, DIM_Y]
     
 
-# DATA_SET = 'meta'
-# MSE_CUTOFF = 1e-3
-# AL_N_dX = 100       # The number of data points to add at each step
-# AL_N_X0 = 1000       # The starting size of the dataset
-# DIM_X = 5
-# DIM_Y = 201
+DATA_SET = 'ADM'
+MSE_CUTOFF = 1e-3
+NA_NUM_INIT = 500
+AL_N_dX = 50       # The number of data points to add at each step
+AL_N_X0 = 500       # The starting size of the dataset
+DIM_X = 14
+DIM_Y = 2000
+LINEAR = [DIM_X, 1000, 1000, 1000, 1000, DIM_Y]
+if AL_MODE == 'Dropout':
+    LINEAR = [DIM_X, 1500, 1500, 1500, 1500, DIM_Y]
 
 DIM_X_LOW = [-1]
 DIM_X_HIGH = [1]

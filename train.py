@@ -4,6 +4,7 @@ This file serves as a training interface for training the network
 # Built in
 import glob
 import os
+from pickle import NONE
 import shutil
 import random
 import sys
@@ -14,7 +15,7 @@ sys.path.append('../utils/')
 # Own
 import flag_reader
 from class_wrapper import Network
-from model_maker import NA, NAAL, Dropout
+from model_maker import NN, NAAL, Dropout
 import numpy as np
 
 
@@ -24,7 +25,7 @@ def AL_from_flag(flags, trail=0):
     :param flag: The training flags read from command line or parameter.py
     :return: None
     """
-    model_fn = NAAL if flags.naal else NA
+    model_fn = NAAL if flags.naal else NN
     model_fn = Dropout if 'Drop' in flags.al_mode else NAAL         # This is the model for dropout
     # Make Network
     ntwk = Network(model_fn, flags)
@@ -32,7 +33,7 @@ def AL_from_flag(flags, trail=0):
     ntwk.active_learn(trail=trail)
 
 def AL_debug(flags):
-    model_fn = NAAL if flags.naal else NA
+    model_fn = NAAL if flags.naal else NN
     model_fn = Dropout if 'Drop' in flags.al_mode else NAAL
     ntwk = Network(model_fn, flags)
     ntwk.get_training_data_distribution(iteration_ind=-1)
@@ -62,11 +63,11 @@ def hyper_sweep_AL():
     # for reset_weight in [True, False]:
     for reset_weight in [False]:
     # for reset_weight in [False]:
-        # for al_mode in ['Random']:
+        for al_mode in ['Random']:
         # for al_mode in ['NA']:
         # for al_mode in ['VAR']:
         # for al_mode in ['NAMD_POW']:
-        for al_mode in ['Dropout']:
+        # for al_mode in ['Dropout']:
         # for al_mode in ['MSE']:
         #for al_mode in ['VAR','Random','MSE','NA']:
         # for al_mode in ['MSE','VAR']:

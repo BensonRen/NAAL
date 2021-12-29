@@ -15,9 +15,9 @@ import torch
 from torch import pow, add, mul, div, sqrt
 
 
-class NA(nn.Module):
+class NN(nn.Module):
     def __init__(self, flags):
-        super(NA, self).__init__()
+        super(NN, self).__init__()
         # Linear Layer and Batch_norm Layer definitions here
         self.linears = nn.ModuleList([])
         self.bn_linears = nn.ModuleList([])
@@ -89,7 +89,7 @@ class NAAL(nn.Module):
         self.sub_model_list = nn.ModuleList([])
         self.nmod = flags.al_n_model
         for i in range(self.nmod):
-            self.sub_model_list.append(NA(flags))
+            self.sub_model_list.append(NN(flags))
         print('self sub_model len', len(self.sub_model_list))
     
     # def __getitem__(self, index):

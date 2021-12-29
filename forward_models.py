@@ -5,6 +5,8 @@ import numpy as np
 import os 
 import pandas as pd
 
+from meta.generate_chen import simulate as chen_sim
+import ADMpredict
 
 def simulator(dataset, x):
     if 'sin' in dataset:
@@ -21,9 +23,16 @@ def simulator(dataset, x):
             y[:, 0] += np.cos(x[:, i+1]*np.pi/2) * arm_len[i]
             y[:, 1] += np.sin(x[:, i+1]*np.pi/2) * arm_len[i]
         return y
-    elif 'meta' in dataset:
+    elif 'ADM' in dataset:
+        print('calling the ADM simulator now')
         # Meta-material design dataset:    14D  ->  2000D
         assert np.shape(x)[1] == 14, 'Your dimension of x input in the simualtor, meta material dataset is wrong!!'
+        return ADMpredict.ensemble_predict_master('meta/ADM/state_dicts/', x)
+    elif 'Chen' in dataset:
+        print('calling the Chen simulator now')
+        # Meta-material design dataset:     5D  ->  201D
+        x = x*22.5+27.5         # This is reverting the normalization
+        return chen_sim(x)
     else:
         assert dataset == 'None', 'Your dataset name is incorrect, check the flag input!'
 # Testing function that plots the output of the 
