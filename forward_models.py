@@ -18,8 +18,8 @@ def simulator(dataset, x):
         y = np.zeros([len(x), 2])   # Initialize the y dimensional matrix
         y[:, 1]  = x[:, 0]          # The first dimension of the x is the original y value
         for i in range(3):          # For each of the angles, the robotic arm would have angle x
-            y[:, 0] += np.cos(x[:, i+1]) * arm_len[i]
-            y[:, 1] += np.sin(x[:, i+1]) * arm_len[i]
+            y[:, 0] += np.cos(x[:, i+1]*np.pi/2) * arm_len[i]
+            y[:, 1] += np.sin(x[:, i+1]*np.pi/2) * arm_len[i]
         return y
     elif 'meta' in dataset:
         # Meta-material design dataset:    14D  ->  2000D

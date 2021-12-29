@@ -16,7 +16,7 @@ NA_MD_RADIUS = 0.05
 # NA_MD_COEFF = 100
 
 #AL_MODE = 'VAR'     # The Active Learning mode, VAE means using the variance
-AL_TEST_N = 2000
+AL_TEST_N = 4000
 AL_X_POOL = 500
 BOOTSTRAP = 0     # Bootstraping the training dataset for each of the models during training
 LOAD_DATASET = None
@@ -31,22 +31,27 @@ STOP_CRITERIA_NUM = 5
 
 # Dataset related parameters
 # DATA_SET = 'sine'
-# MSE_CUTOFF = 1e-3
+# MSE_CUTOFF = 5e-4
 # NA_NUM_INIT = 100
 # AL_N_dX = 10       # The number of data points to add at each step
 # AL_N_X0 = 40      # The starting size of the dataset
 # DIM_X = 1
 # DIM_Y = 1
 # LINEAR = [DIM_X, 20,  20, 20, 20, 20, 20, 20, 20, 20, DIM_Y]
+# if AL_MODE == 'Dropout':
+#     LINEAR = [DIM_X, 60,  60, 60, 60, 60, 60, 60, 60, 60 DIM_Y]
 
 DATA_SET = 'robo'
-MSE_CUTOFF = 1e-3
-NA_NUM_INIT = 200
-AL_N_dX = 20       # The number of data points to add at each step
-AL_N_X0 = 1000       # The starting size of the dataset
+MSE_CUTOFF = 1e-4
+NA_NUM_INIT = 100
+AL_N_dX = 10       # The number of data points to add at each step
+AL_N_X0 = 40       # The starting size of the dataset
 DIM_X = 4
 DIM_Y = 2
 LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
+if AL_MODE == 'Dropout':
+    LINEAR = [DIM_X, 1500, 1500, 1500, 1500, DIM_Y]
+    
 
 # DATA_SET = 'meta'
 # MSE_CUTOFF = 1e-3

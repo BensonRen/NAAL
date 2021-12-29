@@ -502,7 +502,7 @@ class Network(object):
                 # print('training model ', i)
                 self.train_single(i)
         else:
-            # print('training model -1')
+            print('training model 0')
             self.train_single(0)
 
     def eval_model(self, model_ind, eval_X, eval_Y):
@@ -510,12 +510,12 @@ class Network(object):
         Evaluation of 
         """
         print('doing evaluationg on model ', model_ind )
-        Ypred = self.pred(model_ind, eval_X, output_numpy=True)
+        Ypred = self.pred_model(model_ind, eval_X, output_numpy=True)
         mse = MSE(Ypred, eval_Y)
         print('model {} has mse = {}'.format(model_ind, np.mean(mse)))
         return mse
 
-    def pred_model(self, model_ind, test_X, output_numpy=False):
+    def pred_model(self, model_ind, test_X, output_numpy=False, dropout=False):
         """ (finished naal)
         Output the prediction of model[model_ind]
         """
@@ -529,8 +529,14 @@ class Network(object):
             test_X = test_X.cuda()
             self.models[model_ind].cuda()
 
-        # Start predicting
+        # Start predicting, set everything into evaluation mode
         self.models[model_ind].eval()
+        # For all the dropout layers, we are still doing dropouts during evaluation stage
+        if dropout:
+            for m in self.models[model_ind].modules():
+                if m.__class__.__name__.startswith('Dropout'):
+                    m.train()
+        # Do the prediction function
         Ypred = self.models[model_ind](test_X.float())
 
         # Convert to numpy if necessary
@@ -556,8 +562,11 @@ class Network(object):
         """
         Get the average output Y for a given dataset test_X
         """
-        Ypred_mat = self.ensemble_predict_mat(test_X)       # Get the Ypred mat from each model prediction
-        return np.mean(Ypred_mat, axis=0)
+        if self.flags.al_mode == 'Dropout':
+            return self.pred_model(0, test_X, output_numpy=True, dropout=False)
+        else:
+            Ypred_mat = self.ensemble_predict_mat(test_X)       # Get the Ypred mat from each model prediction
+            return np.mean(Ypred_mat, axis=0)
     
     def ensemble_MSE(self, test_X, test_Y):
         """
@@ -566,11 +575,19 @@ class Network(object):
         Ypred = self.ensemble_predict(test_X)     # Get the Ypred mat from each model prediction
         return MSE(Ypred, test_Y)
     
-    def ensemble_VAR(self, test_X):
+    def ensemble_VAR(self, test_X, num_repeat=25):
         """
         Get the Variance for the ensemble model
+        param: num_repeat (default = 25) Number of times to do the prediction to estimate the variance
         """
-        Ypred_mat = self.ensemble_predict_mat(test_X)
+        if 'Drop' in self.flags.al_mode:
+            # Initialize the Ypred_mat
+            Ypred_mat = torch.zeros([num_repeat, len(test_X), self.flags.dim_y])
+            # Repeat the prediction for 
+            for i in range(num_repeat):
+                Ypred_mat[i, :, :] = self.pred_model(0, test_X, dropout=True)
+        else:       # The normal QBC case
+            Ypred_mat = self.ensemble_predict_mat(test_X)
         mean_pred = np.mean(Ypred_mat, axis=0)
         var = np.mean(np.mean(np.square(Ypred_mat - mean_pred),axis=0), axis=-1)
         # print('the shape of the variance output is ', np.shape(var))
@@ -605,12 +622,12 @@ class Network(object):
             pool_chosen_one_mse = np.mean(pool_mse[index[-self.flags.al_n_dx:]])
             #print('the mean mse of the whole pool is {}'.format(pool_mse_mean))
             #print('the mean mse of chosen ones {}'.format(pool_chosen_one_mse))
-        elif self.flags.al_mode == 'VAR':
+        elif self.flags.al_mode == 'VAR' or self.flags.al_mode == 'Dropout':
             pool_VAR, pool_x_pred_y_mat = self.ensemble_VAR(pool_x)
             index = np.argsort(pool_VAR)
             if self.flags.plot_correlation_VAR_MSE:
-                #print('shape of mat', np.shape(pool_x_pred_y_mat))
-                pool_mse_models = np.ravel(MSE(pool_x_pred_y_mat, pool_y, axis=0))                              # rank the ensembled prediction and get the top ones 
+                # print('shape of mat', np.shape(pool_x_pred_y_mat))
+                pool_mse_models = np.mean(MSE(pool_x_pred_y_mat, pool_y, axis=0), axis=-1)                              # rank the ensembled prediction and get the top ones 
                 # print('size of pool_mse_models', np.shape(pool_mse_models))
                 # print('size of pool_VAR', np.shape(pool_VAR))
                 # print(pool_mse_models)
@@ -632,6 +649,9 @@ class Network(object):
             # index = np.random.permutation(len(pool_x))
             # The simplest random way, just the sequence itself
             index = range(len(pool_x))
+        elif self.flags.al_mode == 'Core-set':
+            # The core set way of getting the queries
+            return
         elif 'NA' in self.flags.al_mode:
             """
             The case where the Neural adjoint method is used for getting the additional output
