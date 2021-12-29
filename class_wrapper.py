@@ -258,14 +258,17 @@ class Network(object):
         if logit is None:
             return None
         if self.naal:       # If NAAL, average the MSE to get the overall MSE for backprop
-            # print(logit.size())
-            #print(labels.size())
-            # print('naal')
-            MSE_loss = nn.functional.mse_loss(logit, labels.unsqueeze(0).repeat(self.n_model, 1, 1))
-            # for i in range(self.flags.al_n_model):
-            #     mse = nn.functional.mse_loss(logit[i, :, :], labels)
-            #     MSE_loss += mse
-                #logit = torch.mean(logit, axis=0)
+            if 'Drop' in self.flags.al_mode:        # This is for the dropout only
+                MSE_loss = nn.functional.mse_loss(logit, labels)
+            else:
+                # print('in make loss, logit size', logit.size())
+                # print('in make loss, label size',labels.size())
+                # print('naal')
+                MSE_loss = nn.functional.mse_loss(logit, labels.unsqueeze(0).repeat(self.n_model, 1, 1))
+                # for i in range(self.flags.al_n_model):
+                #     mse = nn.functional.mse_loss(logit[i, :, :], labels)
+                #     MSE_loss += mse
+                    #logit = torch.mean(logit, axis=0)
         else:
             # print('not naal')
             MSE_loss = nn.functional.mse_loss(logit, labels, reduction='mean')          # The MSE Loss
@@ -582,10 +585,11 @@ class Network(object):
         """
         if 'Drop' in self.flags.al_mode:
             # Initialize the Ypred_mat
-            Ypred_mat = torch.zeros([num_repeat, len(test_X), self.flags.dim_y])
+            Ypred_mat = np.zeros([num_repeat, len(test_X), self.flags.dim_y])
             # Repeat the prediction for 
             for i in range(num_repeat):
-                Ypred_mat[i, :, :] = self.pred_model(0, test_X, dropout=True)
+                Ypred_mat[i, :, :] = self.pred_model(0, test_X, output_numpy=True,dropout=True)
+            # print('in ensemble VAR, shape of Ypred_mat is', Ypred_mat.size())
         else:       # The normal QBC case
             Ypred_mat = self.ensemble_predict_mat(test_X)
         mean_pred = np.mean(Ypred_mat, axis=0)

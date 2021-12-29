@@ -83,9 +83,9 @@ def hyper_sweep_AL():
             #for al_x_pool_factor in [0.05]:       # The size of the pool divided by the number of points chosen
             #for al_x_pool_factor in [0.5, 0.1, 0.05]:       # The size of the pool divided by the number of points chosen
                 for n_models in [10]:
-                    # ii = 9
-                    # for i in range(ii, ii+1):                                      # Total number of trails to aggregate
-                    for i in range(5):                                      # Total number of trails to aggregate
+                    ii = 9
+                    for i in range(ii, ii+1):                                      # Total number of trails to aggregate
+                    # for i in range(5):                                      # Total number of trails to aggregate
                     # for i in range(5, 10):                                      # Total number of trails to aggregate
                         flags = flag_reader.read_flag()  	#setting the base case
                         flags.batch_size = 5000

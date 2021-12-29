@@ -48,7 +48,7 @@ class NA(nn.Module):
 
 class Dropout(nn.Module):
     def __init__(self, flags):
-        super(NA, self).__init__()
+        super(Dropout, self).__init__()
         # Linear Layer and Batch_norm Layer definitions here
         self.linears = nn.ModuleList([])
         self.bn_linears = nn.ModuleList([])
