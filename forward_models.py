@@ -5,7 +5,7 @@ import numpy as np
 import os 
 import pandas as pd
 
-from meta.generate_chen import simulate as chen_sim
+from meta.Stack.generate_chen import multi_process_simulate as chen_sim
 import ADMpredict
 
 def simulator(dataset, x):

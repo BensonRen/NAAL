@@ -621,10 +621,10 @@ class Network(object):
         pool_x = self.random_sample_X(self.flags.al_x_pool)                 # Generate some random samples for making the pool
         #if step_num != None:
         #    print('in step {}, the sum of pool x is {}'.format(step_num, np.sum(pool_x)))
+        pool_x_pred_y, pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau = 0, 0, 0, 0, 0     # in case it is not MSE based
         if 'NA' not in self.flags.al_mode:
             pool_y = self.simulator(self.dataset, pool_x)
             pool_x_pred_y = self.ensemble_predict(pool_x)    # make ensemble predictions
-            pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau = 0, 0, 0, 0     # in case it is not MSE based
         if self.flags.al_mode == 'MSE':
             pool_mse = MSE(pool_x_pred_y, pool_y)                               # rank the ensembled prediction and get the top ones 
             index = np.argsort(pool_mse)
