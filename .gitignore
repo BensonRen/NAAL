@@ -1,6 +1,8 @@
 # Get some files for ignoring
 meta/
 sample_Y.png
+saved_*/
+debug/
 
 
 # Dataset related

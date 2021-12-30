@@ -66,12 +66,10 @@ def hyper_sweep_AL():
         # for al_mode in ['Random']:
         # for al_mode in ['NA']:
         # for al_mode in ['VAR']:
-        for al_mode in ['NAMD_POW']:
-        # for al_mode in ['Dropout']:
+        # for al_mode in ['NAMD_POW']:
+        for al_mode in ['Dropout']:
+        # for al_mode in ['Core-set']:
         # for al_mode in ['MSE']:
-        #for al_mode in ['VAR','Random','MSE','NA']:
-        # for al_mode in ['MSE','VAR']:
-        #for al_mode in ['Random','NA']:
             # for al_n_step in [-1]:
             #for al_n_step in [20]:
                 # for al_n_dx in [10]:
@@ -84,10 +82,10 @@ def hyper_sweep_AL():
             #for al_x_pool_factor in [0.05]:       # The size of the pool divided by the number of points chosen
             #for al_x_pool_factor in [0.5, 0.1, 0.05]:       # The size of the pool divided by the number of points chosen
                 for n_models in [10]:
-                    ii = 9
-                    for i in range(ii, ii+1):                                      # Total number of trails to aggregate
+                    # ii = 9
+                    # for i in range(ii, ii+1):                                      # Total number of trails to aggregate
                     # for i in range(5):                                      # Total number of trails to aggregate
-                    # for i in range(5, 10):                                      # Total number of trails to aggregate
+                    for i in range(5, 10):                                      # Total number of trails to aggregate
                         flags = flag_reader.read_flag()  	#setting the base case
                         flags.batch_size = 5000
                         flags.train_step = 400

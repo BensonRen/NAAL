@@ -22,6 +22,8 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim import lr_scheduler
 from torch.utils.data import Dataset
 
+from sklearn.metrics import pairwise_distances
+
 # Libs
 import numpy as np
 from math import inf
@@ -74,16 +76,18 @@ class Network(object):
         if flags.load_dataset is None:
             self.data_x, self.data_y = self.init_dataset(self.flags.al_n_x0)
         else:
-            self.data_x, self.data_y =  self.load_dataset(flags.load_dataset)
+            self.data_x, self.data_y =  self.load_dataset(flags.load_dataset, testset=False)
         
-        # Creating the random validation dataset
-        self.val_x, self.val_y = self.init_dataset(self.flags.al_test_n)        # Currently the validation set is the same size as test set
+        # # Creating the random validation dataset
+        # self.val_x, self.val_y = self.init_dataset(self.flags.al_test_n)        # Currently the validation set is the same size as test set
 
         # Creat the test set
         if flags.load_testset is None:
             self.test_X , self.test_Y = self.init_dataset(flags.al_test_n)
         else:
             self.test_X , self.test_Y = self.load_dataset(flags.load_testset)
+        
+        self.save_dataset(save_name=os.path.join('saved_datasets', self.flags.data_set), testset=True)   # Save the test set for reusing
         #print('dtype of train x', self.data_x.dtype)
         #print('dtype of train y', self.data_y.dtype)
         print('finish initializaiton')
@@ -93,6 +97,8 @@ class Network(object):
         self.train_loss_tacker_epoch = [[] for i in range(self.n_model)]
 
         self.additional_X = None
+        self.peak_spectra_meta()
+        # quit()
 
     def print_model_stats(self):
         """
@@ -172,19 +178,22 @@ class Network(object):
         # Make sure the dataset save to somewhere
         if save_name is None:
             save_name = os.path.join('dataset_saved', time.strftime('%Y%m%d_%H%M%S', time.localtime()))
+        if not os.path.isdir(save_name):    # Make sure the folder exists
+            os.makedirs(save_name)
         if testset:
-            np.save(os.path.join(save_name, 'test', 'data_x.npy'), self.test_x)
-            np.save(os.path.join(save_name, 'test', 'data_y.npy'), self.test_y)
+            np.save(os.path.join(save_name, 'test_x.npy'), self.test_X)
+            np.save(os.path.join(save_name, 'test_y.npy'), self.test_Y)
         else:
             np.save(os.path.join(save_name, 'data_x.npy'), self.data_x)
             np.save(os.path.join(save_name, 'data_y.npy'), self.data_y)
         print("Your dataset has been saved to ", save_name)
 
-    def load_dataset(self, load_dataset):
+    def load_dataset(self, load_dataset, testset=True):
         """
         The function to load the dataset
         """
-        return np.load(os.path.join(load_dataset, 'data_x.npy')),  np.load(os.path.join(load_dataset, 'data_y.npy'))
+        prefix = 'test' if testset else 'data'
+        return np.load(os.path.join(load_dataset, self.flags.data_set, prefix + '_x.npy')),  np.load(os.path.join(load_dataset, self.flags.data_set, prefix + '_y.npy'))
     
     def save_flags(flags, save_dir, save_file="flags.obj"):
         """
@@ -402,7 +411,7 @@ class Network(object):
             train_loader = self.get_loader(self.data_x, self.data_y)
         
         # Debugging, using the train set as the validation loader
-        val_loader = self.get_loader(self.val_x, self.val_y)
+        val_loader = self.get_loader(self.test_X, self.test_Y)
         # val_loader = self.get_loader(self.data_x, self.data_y)
 
         cuda = True if torch.cuda.is_available() else False
@@ -548,10 +557,18 @@ class Network(object):
             Ypred = Ypred.cpu().data.numpy()
         return Ypred
 
-    def ensemble_predict_mat(self, test_X):
+    def ensemble_predict_mat(self, test_X, num_repeat=25):
         """ (finished naal)
         Get each model to predict and output a large matrix
         """
+        if 'Drop' in self.flags.al_mode:
+            # Initialize the Ypred_mat
+            Ypred_mat = np.zeros([num_repeat, len(test_X), self.flags.dim_y])
+            # Repeat the prediction for 
+            for i in range(num_repeat):
+                Ypred_mat[i, :, :] = self.pred_model(0, test_X, output_numpy=True,dropout=True)
+            return Ypred_mat
+
         if self.naal:
             # print('doing ensemble predict for naal')
             return self.pred_model(0, test_X, output_numpy=True)
@@ -579,20 +596,12 @@ class Network(object):
         Ypred = self.ensemble_predict(test_X)     # Get the Ypred mat from each model prediction
         return MSE(Ypred, test_Y)
     
-    def ensemble_VAR(self, test_X, num_repeat=25):
+    def ensemble_VAR(self, test_X):
         """
         Get the Variance for the ensemble model
         param: num_repeat (default = 25) Number of times to do the prediction to estimate the variance
         """
-        if 'Drop' in self.flags.al_mode:
-            # Initialize the Ypred_mat
-            Ypred_mat = np.zeros([num_repeat, len(test_X), self.flags.dim_y])
-            # Repeat the prediction for 
-            for i in range(num_repeat):
-                Ypred_mat[i, :, :] = self.pred_model(0, test_X, output_numpy=True,dropout=True)
-            # print('in ensemble VAR, shape of Ypred_mat is', Ypred_mat.size())
-        else:       # The normal QBC case
-            Ypred_mat = self.ensemble_predict_mat(test_X)
+        Ypred_mat = self.ensemble_predict_mat(test_X)
         mean_pred = np.mean(Ypred_mat, axis=0)
         var = np.mean(np.mean(np.square(Ypred_mat - mean_pred),axis=0), axis=-1)
         # print('the shape of the variance output is ', np.shape(var))
@@ -622,7 +631,7 @@ class Network(object):
         #if step_num != None:
         #    print('in step {}, the sum of pool x is {}'.format(step_num, np.sum(pool_x)))
         pool_x_pred_y, pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau = 0, 0, 0, 0, 0     # in case it is not MSE based
-        if 'NA' not in self.flags.al_mode:
+        if 'NA' not in self.flags.al_mode and 'Core' not in self.flags.al_mode:
             pool_y = self.simulator(self.dataset, pool_x)
             pool_x_pred_y = self.ensemble_predict(pool_x)    # make ensemble predictions
         if self.flags.al_mode == 'MSE':
@@ -661,8 +670,23 @@ class Network(object):
             # The simplest random way, just the sequence itself
             index = range(len(pool_x))
         elif self.flags.al_mode == 'Core-set':
-            # The core set way of getting the queries
-            return
+                # # Setting up the pool, labelled set and the place holder for the chosen ones 
+                X_train, x_pool, X_add = self.data_x, np.copy(pool_x), np.zeros([self.flags.al_n_dx, self.flags.dim_x])
+                for i in range(self.flags.al_n_dx):        # Adding the points one-by-one
+                    dist = pairwise_distances(X_train, x_pool, metric='euclidean')      # Get the pair-wise distance
+                    print('shape of dist mat', np.shape(dist))
+                    D_min = np.min(dist, axis=0).reshape(-1, 1)                         # Take the min (closest neighbor)
+                    print('shape of D_min', np.shape(D_min))
+                    max_min_D = np.argmax(D_min)                                        # Get the one with the furthest neighbour
+                    X_add[i, :] = x_pool[max_min_D, :]                                  # Add this to the list
+                    #X_add.append(x_pool[np.argmax(D_min), :])                          # Add this to the list
+                    X_train = np.vstack((X_train, x_pool[max_min_D, :]))                # Take this into the training set
+                    print('shape of X_train', np.shape(X_train))
+                    x_pool = np.delete(x_pool, np.argmax(D_min), 0)                     # Remove this added one 
+
+                pool_x = X_add      # Update the pool
+                pool_y = self.simulator(self.dataset, pool_x)
+                index = range(len(pool_x))
         elif 'NA' in self.flags.al_mode:
             """
             The case where the Neural adjoint method is used for getting the additional output
@@ -730,7 +754,7 @@ class Network(object):
             # index = range(len(pool_x))
         else:
             print('Your Active Learning mode is wrong, check again!')
-            quit()
+            1/0     # Manuall stop to print the stack as well
         return pool_x[index[-self.flags.al_n_dx:]], pool_y[index[-self.flags.al_n_dx:]], pool_x_pred_y, pool_y, index, pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau
     
     def build_tensor(self, nparray, requires_grad=False):
@@ -798,7 +822,7 @@ class Network(object):
             # Calculate mse and report that
             mse_train = np.mean(self.ensemble_MSE(self.data_x, self.data_y))
             mse_test = np.mean(self.ensemble_MSE(self.test_X, self.test_Y))
-            print('AL step {}, current train set size = {}, train set mse = {}, test set mse = {}, the AL_mode is {}, retrain = {}'.format(al_step, 
+            print('AL step {}, current train set size = {}, train set mse = {:3e}, test set mse = {:3e}, the AL_mode is {}, retrain = {}'.format(al_step, 
                     len(self.data_x), mse_train, mse_test, self.flags.al_mode, self.flags.reset_weight))
             
             # First we select the additional X
@@ -1005,13 +1029,33 @@ class Network(object):
         if fig_ax is None:
             plt.savefig(os.path.join(save_dir, 'meta_debug_plot_@iter_{}'.format(iteration_ind)))
 
+
+    def peak_spectra_meta(self, peak_num=10, save_dir='debug'):
+        """
+        The function to take a peak at the spectra to make sure they are fine
+        """
+        if not self.flags.data_set in ['ADM','Shell','Stack']:
+            print('Peak spectra should be a meta-material dataset')
+            return 
+        # Peak the training set
+        f = plt.figure()
+        for i in range(peak_num):
+            plt.plot(self.data_y[i, :])
+        plt.savefig(os.path.join(save_dir, 'peak_train_spectra.png'))
+        # Peak the test set
+        f = plt.figure()
+        for i in range(peak_num):
+            plt.plot(self.test_Y[i, :])
+        plt.savefig(os.path.join(save_dir, 'peak_test_spectra.png'))
+
+
     def plot_both_plots(self, iteration_ind, save_dir='results/fig'):
         #print('plotting debugging plots!')
         f = plt.figure(figsize=[10, 6])
         if 'sin' in self.flags.data_set:
             self.get_training_data_distribution(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
             self.plot_sine_debug_plot(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
-        elif self.flags.data_set in ['Chen', 'ADM']:
+        elif self.flags.data_set in ['Stack', 'ADM']:
             self.plot_meta_debug_plot(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
         f.savefig(os.path.join(save_dir, 'both_plot_@iter_{}'.format(iteration_ind)))
         plt.cla()

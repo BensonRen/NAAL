@@ -55,6 +55,9 @@ def read_flag():
 
     # Model Architectural Params
     parser.add_argument('--linear', type=list, default=LINEAR, help='The fc layers units')
+    parser.add_argument('--conv-out-channel', type=list, default=CONV_OUT_CHANNEL, help='The output channel of your 1d conv')
+    parser.add_argument('--conv-kernel-size', type=list, default=CONV_KERNEL_SIZE, help='The kernel size of your 1d conv')
+    parser.add_argument('--conv-stride', type=list, default=CONV_STRIDE, help='The strides of your 1d conv')
 
     # Optimizer Params
     parser.add_argument('--optim', default=OPTIM, type=str, help='the type of optimizer that you want to use')
