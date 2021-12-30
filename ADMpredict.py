@@ -47,7 +47,7 @@ def predict_from_model(pre_trained_model, X, load_state_dict=None):
     
     return ntwk.predict(X, load_state_dict=load_state_dict)
 
-def ensemble_predict(model_list, X):
+def ensemble_predict(model_list, X, plot_sample=False):
     """
     This predicts the output from an ensemble of models
     :param model_list: The list of model names to aggregate
@@ -68,6 +68,16 @@ def ensemble_predict(model_list, X):
     # Take the mean of the predictions
     pred_all = np.concatenate(pred_list, axis=2)
     pred_mean = np.mean(pred_all, axis=2)
+    # print('shape of X',np.shape(X))
+    # print('shape of pred_mean',np.shape(pred_mean))
+    if plot_sample:
+        f = plt.figure()
+        plt.plot(pred_mean[0, :])
+        plt.savefig('sample_Y.png')
+    if pred_mean[0, -1] == 0:       # This is to catch error cases and output the stack
+        print('shape of pred_all is',np.shape(pred_all))
+        print('value is ', pred_all)
+        1/0
     return pred_mean
 
 

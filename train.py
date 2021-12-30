@@ -63,10 +63,10 @@ def hyper_sweep_AL():
     # for reset_weight in [True, False]:
     for reset_weight in [False]:
     # for reset_weight in [False]:
-        for al_mode in ['Random']:
+        # for al_mode in ['Random']:
         # for al_mode in ['NA']:
         # for al_mode in ['VAR']:
-        # for al_mode in ['NAMD_POW']:
+        for al_mode in ['NAMD_POW']:
         # for al_mode in ['Dropout']:
         # for al_mode in ['MSE']:
         #for al_mode in ['VAR','Random','MSE','NA']:

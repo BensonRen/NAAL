@@ -540,6 +540,7 @@ class Network(object):
                 if m.__class__.__name__.startswith('Dropout'):
                     m.train()
         # Do the prediction function
+        # print('size of test_X is', test_X.size())
         Ypred = self.models[model_ind](test_X.float())
 
         # Convert to numpy if necessary
@@ -597,14 +598,19 @@ class Network(object):
         # print('the shape of the variance output is ', np.shape(var))
         return var, Ypred_mat
 
-    def add_X_into_trainset(self, additional_X, additional_Y=None):
+    def add_X_into_trainset(self, additional_X, additional_Y=None, plot_first_y=False):
         """
         Add the additional_X (optinal additional_Y) into the training set to self.data_x and self.data_y
         They are all in numpy format
+        plot_first_y: Plotting the first Y value to look at it, debugging purpose
         """
         # Simulate Y if it is not provided
         if additional_Y is None:
             additional_Y = self.simulator(self.dataset, additional_X)
+        # print('during adding X into train set, the shape of X and Y are', np.shape(additional_X), np.shape(additional_Y))
+        if plot_first_y:        # Debugging
+            plt.plot(additional_Y[0, :])
+            plt.savefig('sample_Y.png')
         self.data_x = np.concatenate([self.data_x, additional_X])
         self.data_y = np.concatenate([self.data_y, additional_Y])
 
@@ -615,9 +621,10 @@ class Network(object):
         pool_x = self.random_sample_X(self.flags.al_x_pool)                 # Generate some random samples for making the pool
         #if step_num != None:
         #    print('in step {}, the sum of pool x is {}'.format(step_num, np.sum(pool_x)))
-        pool_y = self.simulator(self.dataset, pool_x)
-        pool_x_pred_y = self.ensemble_predict(pool_x)    # make ensemble predictions
-        pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau = 0, 0, 0, 0     # in case it is not MSE based
+        if 'NA' not in self.flags.al_mode:
+            pool_y = self.simulator(self.dataset, pool_x)
+            pool_x_pred_y = self.ensemble_predict(pool_x)    # make ensemble predictions
+            pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau = 0, 0, 0, 0     # in case it is not MSE based
         if self.flags.al_mode == 'MSE':
             pool_mse = MSE(pool_x_pred_y, pool_y)                               # rank the ensembled prediction and get the top ones 
             index = np.argsort(pool_mse)
@@ -712,6 +719,7 @@ class Network(object):
 
             # Finished the backprop, get the list
             pool_x = na_pool.cpu().detach().numpy()
+            pool_y = self.simulator(self.dataset, pool_x)
             ensembled = torch.mean(logit, dim=0).unsqueeze(0).repeat(self.n_model, 1, 1)
             var = nn.functional.mse_loss(logit, ensembled, reduction='none').cpu().detach().numpy()
             # print('var size', np.shape(var))
@@ -963,12 +971,48 @@ class Network(object):
         if fig_ax is None:
             plt.savefig(os.path.join(save_dir, 'sine_debug_plot_@iter_{}'.format(iteration_ind)))
 
+    def plot_meta_debug_plot(self, iteration_ind, save_dir, fig_ax=None):
+        if fig_ax is None:
+            f = plt.figure(figsize=[10, 3])
+        else:
+            ax = plt.subplot(212)
+        # print('size of data x ', np.shape(self.data_x))
+        # print('size of data y', np.shape(self.data_y))
+        # Plot the first spectra and all the predictions
+        all_y = self.data_y[0, :]
+        plt.plot(self.data_y[0, :],label='gt')
+        all_yp = self.ensemble_predict_mat(np.reshape(self.data_x[0, :], [1, -1]))
+        # print('shape of all_yp in debugging plot', np.shape(all_yp))
+        for i in range(len(all_yp)):
+            plt.plot(all_yp[i, 0, :], alpha=0.1, c='r')#, label='NN{}'.format(i))
+        avg_y = np.mean(all_yp, axis=0)                     # Get the average y
+        #print('shape of avg_y', np.shape(avg_y))
+        std_y = np.sqrt(np.var(all_yp, axis=0))             # Get the variance
+        avg_y, std_y = np.ravel(avg_y), np.ravel(std_y)
+        # print('shape of std y = {}, avg y = {}'.format(np.shape(std_y), np.shape(avg_y)))
+        #print('MSE of all y =', np.mean(MSE(avg_y, all_y)))
+        #print('shape of std_y', np.shape(std_y))
+        plt.plot(avg_y, label='average')
+        plt.plot(np.abs(all_y - avg_y), label='sqrt(MSE)')
+        plt.fill_between(np.arange(len(avg_y)), np.ravel(avg_y-std_y), np.ravel(avg_y+std_y), 
+                        alpha=0.3,label='std')
+        # plt.xlim([self.flags.dim_x_low[0], self.flags.dim_x_high[0]])
+        plt.legend()
+        plt.xlabel('x')
+        plt.ylabel('y')
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        if fig_ax is None:
+            plt.savefig(os.path.join(save_dir, 'meta_debug_plot_@iter_{}'.format(iteration_ind)))
+
     def plot_both_plots(self, iteration_ind, save_dir='results/fig'):
         #print('plotting debugging plots!')
         f = plt.figure(figsize=[10, 6])
-        self.get_training_data_distribution(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
         if 'sin' in self.flags.data_set:
+            self.get_training_data_distribution(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
             self.plot_sine_debug_plot(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
+        elif self.flags.data_set in ['Chen', 'ADM']:
+            self.plot_meta_debug_plot(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
         f.savefig(os.path.join(save_dir, 'both_plot_@iter_{}'.format(iteration_ind)))
         plt.cla()
 
