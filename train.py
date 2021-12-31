@@ -8,6 +8,8 @@ from pickle import NONE
 import shutil
 import random
 import sys
+
+from numpy.lib import math
 sys.path.append('../utils/')
 
 # Torch
@@ -66,8 +68,8 @@ def hyper_sweep_AL():
         # for al_mode in ['Random']:
         # for al_mode in ['NA']:
         # for al_mode in ['VAR']:
-        # for al_mode in ['NAMD_POW']:
-        for al_mode in ['Dropout']:
+        for al_mode in ['NAMD_POW']:
+        # for al_mode in ['Dropout']:
         # for al_mode in ['Core-set']:
         # for al_mode in ['MSE']:
             # for al_n_step in [-1]:
@@ -82,12 +84,13 @@ def hyper_sweep_AL():
             #for al_x_pool_factor in [0.05]:       # The size of the pool divided by the number of points chosen
             #for al_x_pool_factor in [0.5, 0.1, 0.05]:       # The size of the pool divided by the number of points chosen
                 for n_models in [10]:
-                    # ii = 9
+                    # ii = 0
                     # for i in range(ii, ii+1):                                      # Total number of trails to aggregate
+                    for i in range(10):                                      # Total number of trails to aggregate
                     # for i in range(5):                                      # Total number of trails to aggregate
-                    for i in range(5, 10):                                      # Total number of trails to aggregate
+                    # for i in range(5, 10):                                      # Total number of trails to aggregate
                         flags = flag_reader.read_flag()  	#setting the base case
-                        flags.batch_size = 5000
+                        flags.batch_size = 2048
                         flags.train_step = 400
                         flags.reset_weight = reset_weight
                         flags.al_n_model = n_models
@@ -100,6 +103,13 @@ def hyper_sweep_AL():
                         # flags.al_n_dx = al_n_dx
                         # flags.al_n_x0 = al_n_x0
                         flags.al_x_pool = int(flags.al_n_dx / al_x_pool_factor)
+                        # If dropout, we need to do the triple for the compensation
+                        if flags.al_mode == 'Dropout':
+                            flags.train_step = 2000
+                            flags.lr = 0.2
+                            for i in range(1, len(flags.linear)-1):
+                                # flags.linear[i] *= int(2)
+                                flags.linear[i] *= int(math.sqrt(10) * 2) # 10 represents the ensemble of 10 models and 2 represents the p=0.5 drop rate
                         # Set the plotting directory
                         #flags.plot_dir = 'results/correlation_trail'
                         #flags.plot_dir = 'results/prior_test'

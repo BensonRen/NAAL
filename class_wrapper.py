@@ -66,7 +66,7 @@ class Network(object):
         else:
             self.models = [self.create_model()]
         print('len of self.models = ', len(self.models))
-        # self.print_model_stats()                                # Print the stats
+        self.print_model_stats()                                # Print the stats
 
         # Setting up the simulator
         # self.simulator = self.init_simulator(self.flags.data_set)
@@ -329,23 +329,33 @@ class Network(object):
             # THis is normal mode of training
             #print('params is none, model_index = {}'.format(model_index))
             params = self.models[model_index].parameters()
+            # print(self.models[0])
+            # print('model parameters')
+            # print(self.models[0].parameters())
+            # print('params', params)
+            # print('make optimizer calling on index', model_index)
+            # print('The total number of parameters to be optimized is ', sum(1 for _ in params))
+            # print('The total number in the original list ', sum(1 for _ in self.models[0].parameters()))
+            # print('plotting all the parameters')
+            # for par in params:
+            #     print(par)
+            # print('finish printing params')
+            # print('plotting the original one')
+            # for par in self.models[0].parameters():
+            #     print(par)
+            # print("finish plotting the original model ")
             reg = self.flags.reg_scale
             lr = self.flags.lr
+            # if 'Drop' in self.flags.al_mode:
+            #     lr = 0.001
         else:
             # THis is NAAL part of the finding large variance
             lr = 0.01
             reg = 0
-        # print('wtf am I learning')
-        # print(params)
-        # print(self.flags.lr)
-        # print(self.models[0].parameters())
-        # print(self.models[1].parameters())
-        # print(self.models[2].parameters())
-        # print(self.models[3].parameters())
-        # print(self.models[4].parameters())
+        
 
         if optimizer_type == 'Adam':
-            op = torch.optim.Adam(params, lr=lr, weight_decay=reg)
+                op = torch.optim.Adam(params, lr=lr, weight_decay=reg)
         elif optimizer_type == 'RMSprop':
             op = torch.optim.RMSprop(params, lr=lr, weight_decay=reg)
         elif optimizer_type == 'SGD':
@@ -393,7 +403,7 @@ class Network(object):
             self.models[i].load_state_dict(torch.load(os.path.join(self.ckpt_dir, 'best_model_{}.pt'.format(i)),
                                         map_location=torch.device('cpu')))
 
-    def train_single(self, model_ind, verbose=False):
+    def train_single(self, model_ind, verbose=True):
         """ (finished naal)
         The major training function. This would start the training using information given in the flags
         :param model_ind: The index of the model that would like to train
@@ -463,8 +473,8 @@ class Network(object):
             ##################################
             # Debug 11.06 of the batch issue #
             ##################################
-            self.train_loss_tracker[model_ind].append(train_avg_loss)
-            self.train_loss_tacker_epoch[model_ind].append(total_batch_num)
+            # self.train_loss_tracker[model_ind].append(train_avg_loss)
+            # self.train_loss_tacker_epoch[model_ind].append(total_batch_num)
 
             if epoch % self.flags.eval_step == 0:                   # For eval steps, do the evaluations and tensor board
                 # Set to Evaluation Mode
@@ -483,7 +493,7 @@ class Network(object):
                 test_avg_loss = test_loss.cpu().data.numpy() / (j+1)
                 
                 # track the test loss
-                self.test_loss_tracker[model_ind].append(test_avg_loss)
+                # self.test_loss_tracker[model_ind].append(test_avg_loss)
                 if verbose:
                     print("For model %d, this is Epoch %d, training loss %.5f, validation loss %.5f" \
                         % (model_ind, epoch, train_avg_loss, test_avg_loss ))
@@ -671,7 +681,7 @@ class Network(object):
             index = range(len(pool_x))
         elif self.flags.al_mode == 'Core-set':
                 # # Setting up the pool, labelled set and the place holder for the chosen ones 
-                X_train, x_pool, X_add = self.data_x, np.copy(pool_x), np.zeros([self.flags.al_n_dx, self.flags.dim_x])
+                X_train, x_pool, X_add = self.data_x, self.random_sample_X(2000), np.zeros([self.flags.al_n_dx, self.flags.dim_x])
                 for i in range(self.flags.al_n_dx):        # Adding the points one-by-one
                     dist = pairwise_distances(X_train, x_pool, metric='euclidean')      # Get the pair-wise distance
                     print('shape of dist mat', np.shape(dist))
@@ -858,7 +868,7 @@ class Network(object):
         # Plot the final Xtrain distribution
         self.get_training_data_distribution(iteration_ind='end', save_dir=save_dir)
         
-        self.plot_train_loss_tracker(save_dir=save_dir)
+        # self.plot_train_loss_tracker(save_dir=save_dir)
 
         # Save the flag for record purpose
         self.save_flags(save_dir)

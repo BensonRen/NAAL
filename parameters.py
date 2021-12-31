@@ -34,18 +34,16 @@ CONV_KERNEL_SIZE = []
 CONV_STRIDE = []
 
 # Dataset related parameters
-DATA_SET = 'sine'
-MSE_CUTOFF = 5e-4
-NA_NUM_INIT = 100
-AL_N_dX = 10       # The number of data points to add at each step
-AL_N_X0 = 40      # The starting size of the dataset
-DIM_X = 1
-DIM_Y = 1
-LINEAR = [DIM_X, 20,  20, 20, 20, 20, 20, 20, 20, 20, DIM_Y]
-if AL_MODE == 'Dropout':
-    LINEAR = [DIM_X, 60,60,60,60,60,60,60,60,60,  DIM_Y]
-REG_SCALE = 1e-4
-LR_DECAY_RATE = 0.5
+# DATA_SET = 'sine'
+# MSE_CUTOFF = 5e-4
+# NA_NUM_INIT = 100
+# AL_N_dX = 10       # The number of data points to add at each step
+# AL_N_X0 = 40      # The starting size of the dataset
+# DIM_X = 1
+# DIM_Y = 1
+# LINEAR = [DIM_X, 20,  20, 20, 20, 20, 20, 20, 20, 20, DIM_Y]
+# REG_SCALE = 1e-4
+# LR_DECAY_RATE = 0.5
 
 # DATA_SET = 'robo'
 # MSE_CUTOFF = 1e-4
@@ -55,24 +53,22 @@ LR_DECAY_RATE = 0.5
 # DIM_X = 4
 # DIM_Y = 2
 # LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
-# if AL_MODE == 'Dropout':
-#     LINEAR = [DIM_X, 1500, 1500, 1500, 1500, DIM_Y]
     
 
-# DATA_SET = 'ADM'
-# MSE_CUTOFF = 2e-3
-# NA_NUM_INIT = 1000
-# AL_N_dX = 100       # The number of data points to add at each step
-# AL_N_X0 = 500       # The starting size of the dataset
-# DIM_X = 14
-# DIM_Y = 2000
-# LINEAR = [DIM_X, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1000]
-# CONV_OUT_CHANNEL = [4, 4, 4]
-# CONV_KERNEL_SIZE = [4, 3, 3]
-# CONV_STRIDE = [2, 1, 1]
-# if AL_MODE == 'Dropout':
-#     LINEAR = [DIM_X, 1500, 1500, 1500, 1500, DIM_Y]
-# REG_SCALE = 1e-7
+DATA_SET = 'ADM'
+MSE_CUTOFF = 2e-3
+NA_NUM_INIT = 1000
+AL_N_dX = 100       # The number of data points to add at each step
+AL_N_X0 = 500       # The starting size of the dataset
+DIM_X = 14
+DIM_Y = 2000
+LINEAR = [DIM_X, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1000]
+CONV_OUT_CHANNEL = [4, 4, 4]
+CONV_KERNEL_SIZE = [4, 3, 3]
+CONV_STRIDE = [2, 1, 1]
+if AL_MODE == 'Dropout':
+    LINEAR = [DIM_X, 1500, 1500, 1500, 1500, DIM_Y]
+REG_SCALE = 1e-7
 
 
 # DATA_SET = 'Shell'
@@ -113,7 +109,7 @@ DIM_X_HIGH = [1]
 # Optimizer Params
 OPTIM = "Adam"
 BATCH_SIZE = 2096
-EVAL_STEP = 500
+EVAL_STEP = 50
 TRAIN_STEP = 1000
 LEARN_RATE = 1e-3
 LR_DECAY_RATE = 0.8

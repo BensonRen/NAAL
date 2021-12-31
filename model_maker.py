@@ -77,12 +77,13 @@ class Dropout(nn.Module):
         super(Dropout, self).__init__()
         # Linear Layer and Batch_norm Layer definitions here
         self.linears = nn.ModuleList([])
+        # For dropout layer we would not use the batchnorm, as this is not working!!!
         self.bn_linears = nn.ModuleList([])
-        self.dropouts = nn.ModuleList([])
+        # self.dropouts = nn.Dropout(0)#nn.ModuleList([])
         for ind, fc_num in enumerate(flags.linear[0:-1]):               # Excluding the last one as we need intervals
             self.linears.append(nn.Linear(fc_num, flags.linear[ind + 1]))
             self.bn_linears.append(nn.BatchNorm1d(flags.linear[ind + 1]))#, momentum=0.01))
-            self.dropouts.append(nn.Dropout(0.5))
+            #self.dropouts.append()
             # self.bn_linears.append(nn.LayerNorm(flags.linear[ind + 1]))
 
         # Conv Layer definitions here
@@ -113,10 +114,17 @@ class Dropout(nn.Module):
         out = G                                                         # initialize the out
         #print('G size', G.size())
         # For the linear part
-        for ind, (fc, bn) in enumerate(zip(self.linears, self.bn_linears)):
+        # for ind, (fc, bn) in enumerate(zip(self.linears, self.bn_linears)):
+        for ind, fc in enumerate(self.linears):
+            print(out)
+            print(out.size())
             if ind != len(self.linears) - 1:
-                out = F.relu(bn(fc(out)))                                   # ReLU + BN + Linear
-                out = self.dropouts[ind](out)
+                out = F.relu(fc(out))                                   # ReLU + BN + Linear
+                # print(out)
+                # out = F.relu(bn(fc(out)))                                   # ReLU + BN + Linear
+                # if ind != len(self.linears) - 2:
+                # if ind == len(self.linears) - 4:
+                    # out = self.dropouts(out)
                 # out = F.relu(fc(out))
                 # out = F.leaky_relu(bn(fc(out)))       
                 # out = F.leaky_relu(fc(out))    
@@ -124,6 +132,10 @@ class Dropout(nn.Module):
             else:
                 out = fc(out)                                           # For last layer, no activation function
         
+        print(out)
+        print(out.size())
+        quit()
+
         out = out.unsqueeze(1)                                          # Add 1 dimension to get N,L_in, H
         # For the conv part
         for ind, conv in enumerate(self.convs):
