@@ -268,6 +268,7 @@ class Network(object):
             return None
         if self.naal:       # If NAAL, average the MSE to get the overall MSE for backprop
             if 'Drop' in self.flags.al_mode:        # This is for the dropout only
+                # print('shape of logit and labels', logit.size(), labels.size())
                 MSE_loss = nn.functional.mse_loss(logit, labels)
             else:
                 # print('in make loss, logit size', logit.size())
@@ -681,7 +682,7 @@ class Network(object):
             index = range(len(pool_x))
         elif self.flags.al_mode == 'Core-set':
                 # # Setting up the pool, labelled set and the place holder for the chosen ones 
-                X_train, x_pool, X_add = self.data_x, self.random_sample_X(2000), np.zeros([self.flags.al_n_dx, self.flags.dim_x])
+                X_train, x_pool, X_add = self.data_x, self.random_sample_X(2048), np.zeros([self.flags.al_n_dx, self.flags.dim_x])
                 for i in range(self.flags.al_n_dx):        # Adding the points one-by-one
                     dist = pairwise_distances(X_train, x_pool, metric='euclidean')      # Get the pair-wise distance
                     print('shape of dist mat', np.shape(dist))
@@ -693,7 +694,6 @@ class Network(object):
                     X_train = np.vstack((X_train, x_pool[max_min_D, :]))                # Take this into the training set
                     print('shape of X_train', np.shape(X_train))
                     x_pool = np.delete(x_pool, np.argmax(D_min), 0)                     # Remove this added one 
-
                 pool_x = X_add      # Update the pool
                 pool_y = self.simulator(self.dataset, pool_x)
                 index = range(len(pool_x))
