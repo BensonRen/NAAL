@@ -58,19 +58,19 @@ CONV_STRIDE = []
 # LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
     
 
-DATA_SET = 'ADM'
-MSE_CUTOFF = 2e-3
-BATCH_SIZE = 200
-NA_NUM_INIT = 1000
-AL_N_dX = 100       # The number of data points to add at each step
-AL_N_X0 = 500       # The starting size of the dataset
-DIM_X = 14
-DIM_Y = 2000
-LINEAR = [DIM_X, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1000]
-CONV_OUT_CHANNEL = [4, 4, 4]
-CONV_KERNEL_SIZE = [4, 3, 3]
-CONV_STRIDE = [2, 1, 1]
-REG_SCALE = 1e-7
+# DATA_SET = 'ADM'
+# MSE_CUTOFF = 2e-3
+# BATCH_SIZE = 500
+# NA_NUM_INIT = 500
+# AL_N_dX = 50       # The number of data points to add at each step
+# AL_N_X0 = 400       # The starting size of the dataset
+# DIM_X = 14
+# DIM_Y = 2000
+# LINEAR = [DIM_X, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1000]
+# CONV_OUT_CHANNEL = [4, 4, 4]
+# CONV_KERNEL_SIZE = [4, 3, 3]
+# CONV_STRIDE = [2, 1, 1]
+# REG_SCALE = 1e-7
 
 
 # DATA_SET = 'Shell'
@@ -89,20 +89,20 @@ REG_SCALE = 1e-7
 # LR_DECAY_RATE = 0.8
 
 
-# DATA_SET = 'Stack'
-# MSE_CUTOFF = 2e-5
-# BATCH_SIZE = 2000
-# NA_NUM_INIT = 200
-# AL_N_dX = 20       # The number of data points to add at each step
-# AL_N_X0 = 50       # The starting size of the dataset
-# DIM_X = 5
-# DIM_Y = 256
-# LINEAR = [DIM_X, 700, 700, 700, 700, 700, 700, 700, 700, 700,  DIM_Y]
-# CONV_OUT_CHANNEL = []
-# CONV_KERNEL_SIZE = []
-# CONV_STRIDE = []
-# REG_SCALE = 0
-# LR_DECAY_RATE = 0.8
+DATA_SET = 'Stack'
+MSE_CUTOFF = 2e-5
+BATCH_SIZE = 2000
+NA_NUM_INIT = 200
+AL_N_dX = 5       # The number of data points to add at each step
+AL_N_X0 = 30       # The starting size of the dataset
+DIM_X = 5
+DIM_Y = 256
+LINEAR = [DIM_X, 700, 700, 700, 700, 700, 700, 700, 700, 700,  DIM_Y]
+CONV_OUT_CHANNEL = []
+CONV_KERNEL_SIZE = []
+CONV_STRIDE = []
+REG_SCALE = 0
+LR_DECAY_RATE = 0.8
 
 DIM_X_LOW = [-1]
 DIM_X_HIGH = [1]

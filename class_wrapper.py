@@ -23,7 +23,7 @@ from torch.optim import lr_scheduler
 from torch.utils.data import Dataset
 
 from sklearn.metrics import pairwise_distances
-
+from model_maker import Dropout_model
 # Libs
 import numpy as np
 from math import inf
@@ -434,7 +434,9 @@ class Network(object):
         self.lr_scheduler = self.make_lr_scheduler(self.optm)
 
         total_batch_num = len(train_loader)
-        for epoch in range(self.flags.train_step):
+        epoch = 0
+        while epoch < self.flags.train_step:
+        # for epoch in range(self.flags.train_step):
             # Set to Training Mode
             train_loss = 0
             self.models[model_ind].train()
@@ -467,6 +469,7 @@ class Network(object):
                 # Batch effect debugging
                 self.optm.step()                                     # Move one step the optimizer
                 self.optm.zero_grad()
+                epoch += 1
 
             # Calculate the avg loss of training
             train_avg_loss = train_loss / total_batch_num
@@ -504,12 +507,6 @@ class Network(object):
                     best_validation_loss = test_avg_loss
                     #self.save_single(model_ind)
                     #print("Saving the model down...")
-
-                    if best_validation_loss < self.flags.stop_threshold:
-                        print("Training finished EARLIER at epoch %d, reaching loss of %.5f" %\
-                              (epoch, best_validation_loss))
-                        break
-
             # Learning rate decay upon plateau
             self.lr_scheduler.step(train_avg_loss)
         
@@ -537,6 +534,36 @@ class Network(object):
         mse = MSE(Ypred, eval_Y)
         print('model {} has mse = {}'.format(model_ind, np.mean(mse)))
         return mse
+    
+    def pred_dropout_model(self, test_X, output_numpy=False, dropout=False):
+        """ (finished naal)
+        Output the prediction of model[model_ind]
+        """
+        # Get a tensor version of the test X instead of a numpy 
+        if isinstance(test_X, np.ndarray):
+            test_X = self.build_tensor(test_X)
+        
+        # Move things to the GPU
+        cuda = True if torch.cuda.is_available() else False
+        if cuda:
+            test_X = test_X.cuda()
+            self.models[model_ind].cuda()
+
+        # Start predicting, set everything into evaluation mode
+        self.models[model_ind].eval()
+        # For all the dropout layers, we are still doing dropouts during evaluation stage
+        if dropout:
+            for m in self.models[model_ind].modules():
+                if m.__class__.__name__.startswith('Dropout'):
+                    m.train()
+        # Do the prediction function
+        # print('size of test_X is', test_X.size())
+        Ypred = self.dropout_model(test_X.float())
+
+        # Convert to numpy if necessary
+        if output_numpy:
+            Ypred = Ypred.cpu().data.numpy()
+        return Ypred
 
     def pred_model(self, model_ind, test_X, output_numpy=False, dropout=False):
         """ (finished naal)
@@ -618,7 +645,7 @@ class Network(object):
         # print('the shape of the variance output is ', np.shape(var))
         return var, Ypred_mat
 
-    def add_X_into_trainset(self, additional_X, additional_Y=None, plot_first_y=False):
+    def add_X_into_trainset(self, additional_X, additional_Y=None, plot_first_y=False, save_dir=None, step_num=None):
         """
         Add the additional_X (optinal additional_Y) into the training set to self.data_x and self.data_y
         They are all in numpy format
@@ -685,14 +712,14 @@ class Network(object):
                 X_train, x_pool, X_add = self.data_x, self.random_sample_X(2048), np.zeros([self.flags.al_n_dx, self.flags.dim_x])
                 for i in range(self.flags.al_n_dx):        # Adding the points one-by-one
                     dist = pairwise_distances(X_train, x_pool, metric='euclidean')      # Get the pair-wise distance
-                    print('shape of dist mat', np.shape(dist))
+                    # print('shape of dist mat', np.shape(dist))
                     D_min = np.min(dist, axis=0).reshape(-1, 1)                         # Take the min (closest neighbor)
-                    print('shape of D_min', np.shape(D_min))
+                    # print('shape of D_min', np.shape(D_min))
                     max_min_D = np.argmax(D_min)                                        # Get the one with the furthest neighbour
                     X_add[i, :] = x_pool[max_min_D, :]                                  # Add this to the list
                     #X_add.append(x_pool[np.argmax(D_min), :])                          # Add this to the list
                     X_train = np.vstack((X_train, x_pool[max_min_D, :]))                # Take this into the training set
-                    print('shape of X_train', np.shape(X_train))
+                    # print('shape of X_train', np.shape(X_train))
                     x_pool = np.delete(x_pool, np.argmax(D_min), 0)                     # Remove this added one 
                 pool_x = X_add      # Update the pool
                 pool_y = self.simulator(self.dataset, pool_x)
@@ -751,17 +778,51 @@ class Network(object):
                 plt.legend()
                 plt.savefig(os.path.join(save_dir, 'NAMD backprop at step {} .png'.format(step_num)))
 
-            # Finished the backprop, get the list
-            pool_x = na_pool.cpu().detach().numpy()
-            pool_y = self.simulator(self.dataset, pool_x)
-            ensembled = torch.mean(logit, dim=0).unsqueeze(0).repeat(self.n_model, 1, 1)
-            var = nn.functional.mse_loss(logit, ensembled, reduction='none').cpu().detach().numpy()
-            # print('var size', np.shape(var))
-            var = np.reshape(np.mean(np.mean(var, axis=0), axis=-1), [-1, ])
-            # print('after var size', np.shape(var))
-            # print('shape of pool', np.shape(pool_x))
-            index = np.argsort(var)        # Choosing the best k ones
-            # index = range(len(pool_x))
+            if 'Core' in self.flags.al_mode:
+                X_train, x_pool, X_add = self.data_x, na_pool.cpu().detach().numpy(), np.zeros([self.flags.al_n_dx, self.flags.dim_x])
+                for i in range(self.flags.al_n_dx):        # Adding the points one-by-one
+                    dist = pairwise_distances(X_train, x_pool, metric='euclidean')      # Get the pair-wise distance
+                    # print('shape of dist mat', np.shape(dist))
+                    D_min = np.min(dist, axis=0).reshape(-1, 1)                         # Take the min (closest neighbor)
+                    # print('shape of D_min', np.shape(D_min))
+                    max_min_D = np.argmax(D_min)                                        # Get the one with the furthest neighbour
+                    X_add[i, :] = x_pool[max_min_D, :]                                  # Add this to the list
+                    #X_add.append(x_pool[np.argmax(D_min), :])                          # Add this to the list
+                    X_train = np.vstack((X_train, x_pool[max_min_D, :]))                # Take this into the training set
+                    # print('shape of X_train', np.shape(X_train))
+                    x_pool = np.delete(x_pool, np.argmax(D_min), 0)                     # Remove this added one 
+                pool_x = X_add      # Update the pool
+                pool_y = self.simulator(self.dataset, pool_x)
+                index = range(len(pool_x))
+            else:    
+                # Finished the backprop, get the list
+                pool_x = na_pool.cpu().detach().numpy()
+                pool_y = self.simulator(self.dataset, pool_x)
+                ensembled = torch.mean(logit, dim=0).unsqueeze(0).repeat(self.n_model, 1, 1)
+                var = nn.functional.mse_loss(logit, ensembled, reduction='none').cpu().detach().numpy()
+                # print('var size', np.shape(var))
+                var = np.reshape(np.mean(np.mean(var, axis=0), axis=-1), [-1, ])
+                # print('after var size', np.shape(var))
+                # print('shape of pool', np.shape(pool_x))
+                index = np.argsort(var)        # Choosing the best k ones
+                # Plotting the vairance distribution of the points selected in the current active learning step
+                import seaborn as sns
+                if True:
+                    f = plt.figure(figsize=[8, 4])
+                    plt.hist(var)
+                    # Save the figure
+                    plt.savefig(os.path.join(save_dir, 'variance_distribution_step_{}.png'.format(step_num)))
+                    f = plt.figure(figsize=[8, 8])
+                    for dim_num in range(self.flags.dim_x):
+                        # ax = plt.subplot('{}1{}'.format(self.dim_x+1, dim_num+1))
+                        sns.distplot(pool_x[:, dim_num], hist=False, color='C{}'.format(dim_num),
+                                    kde=True)
+                        sns.distplot(pool_x[index[-self.flags.al_n_dx:], dim_num], hist=False, 
+                                    color='C{}'.format(dim_num), kde=True,kde_kws={'linestyle': '--'})
+                    # plt.xlim([-1, 1])
+                    plt.savefig(os.path.join(save_dir, 'dimension_wise_distribution_step_{}.png'.format(step_num)))
+                    plt.close('all')
+                # index = range(len(pool_x))
         else:
             print('Your Active Learning mode is wrong, check again!')
             1/0     # Manuall stop to print the stack as well
