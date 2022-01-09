@@ -65,6 +65,11 @@ class Network(object):
                 self.models.append(self.create_model())                        # The model itself
         else:
             self.models = [self.create_model()]
+        
+        # The dropout network
+        if 'Dropout' in flags.al_mode:
+            self.models.append(self.create_aux_model())
+
         print('len of self.models = ', len(self.models))
         self.print_model_stats()                                # Print the stats
 
@@ -99,6 +104,13 @@ class Network(object):
         self.additional_X = None
         self.peak_spectra_meta()
         # quit()
+
+    def create_aux_model(self):
+        """
+        The auxiliary model, now it is the dropout model
+        """
+        if 'Dropout' in self.flags.al_mode:         # THis is dropout mode
+            return Dropout_model(self.flags)
 
     def print_model_stats(self):
         """
@@ -524,6 +536,10 @@ class Network(object):
         else:
             # print('training model 0')
             self.train_single(0)
+            
+            # Train the auxilary network of dropout as well
+            if 'Dropout' in self.flags.al_mode:
+                self.train_single(1)
 
     def eval_model(self, model_ind, eval_X, eval_Y):
         """
@@ -535,7 +551,7 @@ class Network(object):
         print('model {} has mse = {}'.format(model_ind, np.mean(mse)))
         return mse
     
-    def pred_dropout_model(self, test_X, output_numpy=False, dropout=False):
+    def pred_dropout_model(self, model_ind, test_X, output_numpy=False, dropout=False):
         """ (finished naal)
         Output the prediction of model[model_ind]
         """
@@ -595,16 +611,18 @@ class Network(object):
             Ypred = Ypred.cpu().data.numpy()
         return Ypred
 
-    def ensemble_predict_mat(self, test_X, num_repeat=25):
+    def ensemble_predict_mat(self, test_X, num_repeat=25, VAR=False):
         """ (finished naal)
         Get each model to predict and output a large matrix
+        :param num_repate: Number of repetition for dropout method
+        :param VAR: This ensemble calculation is for Variance calculation (different for dropout)
         """
-        if 'Drop' in self.flags.al_mode:
+        if 'Drop' in self.flags.al_mode and VAR:
             # Initialize the Ypred_mat
             Ypred_mat = np.zeros([num_repeat, len(test_X), self.flags.dim_y])
             # Repeat the prediction for 
             for i in range(num_repeat):
-                Ypred_mat[i, :, :] = self.pred_model(0, test_X, output_numpy=True,dropout=True)
+                Ypred_mat[i, :, :] = self.pred_model(1, test_X, output_numpy=True,dropout=True)
             return Ypred_mat
 
         if self.naal:
@@ -621,11 +639,11 @@ class Network(object):
         """
         Get the average output Y for a given dataset test_X
         """
-        if self.flags.al_mode == 'Dropout':
-            return self.pred_model(0, test_X, output_numpy=True, dropout=False)
-        else:
-            Ypred_mat = self.ensemble_predict_mat(test_X)       # Get the Ypred mat from each model prediction
-            return np.mean(Ypred_mat, axis=0)
+        # if self.flags.al_mode == 'Dropout':
+        #     return self.pred_model(0, test_X, output_numpy=True, dropout=False)
+        # else:
+        Ypred_mat = self.ensemble_predict_mat(test_X， VAR=False)       # Get the Ypred mat from each model prediction
+        return np.mean(Ypred_mat, axis=0)
     
     def ensemble_MSE(self, test_X, test_Y):
         """
@@ -639,7 +657,7 @@ class Network(object):
         Get the Variance for the ensemble model
         param: num_repeat (default = 25) Number of times to do the prediction to estimate the variance
         """
-        Ypred_mat = self.ensemble_predict_mat(test_X)
+        Ypred_mat = self.ensemble_predict_mat(test_X, VAR=True)
         mean_pred = np.mean(Ypred_mat, axis=0)
         var = np.mean(np.mean(np.square(Ypred_mat - mean_pred),axis=0), axis=-1)
         # print('the shape of the variance output is ', np.shape(var))

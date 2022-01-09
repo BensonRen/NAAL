@@ -75,14 +75,15 @@ class NN(nn.Module):
 class Dropout_model(nn.Module):
     def __init__(self, flags):
         super(Dropout_model, self).__init__()
+        dropout_rate = 0.5
         # Linear Layer and Batch_norm Layer definitions here
         self.linears = nn.ModuleList([])
         # For dropout layer we would not use the batchnorm, as this is not working!!!
         self.bn_linears = nn.ModuleList([])
-        self.dropouts = nn.Dropout(0.5)#nn.ModuleList([])
+        self.dropouts = nn.Dropout(dropout_rate)#nn.ModuleList([])
         for ind, fc_num in enumerate(flags.linear[0:-1]):               # Excluding the last one as we need intervals
-            self.linears.append(nn.Linear(fc_num, flags.linear[ind + 1]))
-            self.bn_linears.append(nn.BatchNorm1d(flags.linear[ind + 1]))#, momentum=0.01))
+            self.linears.append(nn.Linear(int(fc_num / dropout_rate), int(flags.linear[ind + 1]/ dropout_rate)))
+            self.bn_linears.append(nn.BatchNorm1d(int(flags.linear[ind + 1]/dropout_rate)))#, momentum=0.01))
             #self.dropouts.append()
             # self.bn_linears.append(nn.LayerNorm(flags.linear[ind + 1]))
 
