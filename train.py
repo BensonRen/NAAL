@@ -71,7 +71,7 @@ def hyper_sweep_AL():
     # for na_num_init in [20, 50, 100, 1000]:
     # for na_num_init in [5, 10, 20, 50, 100, 1000]:
     # for reset_weight in [False]:
-        # for al_mode in ['Random']:
+        # for al_mode in ['Random', 'NA']:
         # for al_mode in ['NA']:
         for al_mode in ['VAR']:
         # for al_mode in ['NAMD_POW']:
@@ -91,13 +91,14 @@ def hyper_sweep_AL():
             # for al_x_pool_factor in [0.5, 0.1, 0.2, 0.25]:       # The size of the pool divided by the number of points chosen
             # for al_x_pool_factor in [0.2]:       # The size of the pool divided by the number of points chosen
             # for al_x_pool_factor in [0.1]:       # The size of the pool divided by the number of points chosen
-            for al_x_pool_factor in [1/5]:       # The size of the pool divided by the number of points chosen
-            #for al_x_pool_factor in [0.5, 0.1, 0.05]:       # The size of the pool divided by the number of points chosen
+            for al_x_pool_factor in [1/2, 1/3, 1/4, 1/5, 1/10]:       # The size of the pool divided by the number of points chosen
+            # for al_x_pool_factor in [1/2, 1/3, 1/4, 1/5, 1/10]:       # The size of the pool divided by the number of points chosen
+            # for al_x_pool_factor in [1/2, 1/3, 1/4, 1/5, 1/10]:       # The size of the pool divided by the number of points chosen
                 for n_models in [10]:
                     # ii = 9
                     # for i in range(ii, ii+1):                                      # Total number of trails to aggregate
-                    # for i in range(10):                                      # Total number of trails to aggregate
-                    for i in range(5):                                      # Total number of trails to aggregate
+                    for i in range(10):                                      # Total number of trails to aggregate
+                    # for i in range(5):                                      # Total number of trails to aggregate
                     # for i in range(5, 10):                                      # Total number of trails to aggregate
                     
                     # for i in range(2):                                      # Total number of trails to aggregate

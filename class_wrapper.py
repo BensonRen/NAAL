@@ -364,7 +364,7 @@ class Network(object):
             #     lr = 0.001
         else:
             # THis is NAAL part of the finding large variance
-            lr = 0.01
+            lr = self.flags.nalr
             reg = 0
         
 
@@ -377,6 +377,15 @@ class Network(object):
         else:
             raise Exception("Your Optimizer is neither Adam, RMSprop or SGD, please change in param or contact Ben")
         return op
+    
+    def make_NA_lr_scheduler(self, optm, verbose=False):
+        """
+        Make the learning rate scheduler as instructed. More modes can be added to this, current supported ones:
+        1. ReduceLROnPlateau (decrease lr when validation error stops improving
+        :return:
+        """
+        return lr_scheduler.ReduceLROnPlateau(optimizer=optm, mode='min',
+                                              factor=0.1, patience=5, verbose=verbose, threshold=1e-6)
 
     def make_lr_scheduler(self, optm, verbose=False):
         """
@@ -753,7 +762,7 @@ class Network(object):
             X_range, X_lower_bound, X_upper_bound = self.get_boundary_lower_bound_uper_bound()
             # Get the optimizer
             self.optm_na = self.make_optimizer(model_index=0, params=[na_pool_raw])
-            self.lr_scheduler_na = self.make_lr_scheduler(self.optm_na)
+            self.lr_scheduler_na = self.make_NA_lr_scheduler(self.optm_na)
             self.models[0].eval()
             
             # MD switch
@@ -825,8 +834,8 @@ class Network(object):
                 # print('shape of pool', np.shape(pool_x))
                 index = np.argsort(var)        # Choosing the best k ones
                 # Plotting the vairance distribution of the points selected in the current active learning step
-                import seaborn as sns
-                if True:
+                if False:
+                    import seaborn as sns
                     f = plt.figure(figsize=[8, 4])
                     plt.hist(var)
                     # Save the figure
@@ -878,7 +887,7 @@ class Network(object):
             try: 
                 al_mode_str = self.flags.al_mode
                 if 'NA' in al_mode_str:
-                    al_mode_str += 'init_{}'.format(self.flags.na_num_init)
+                    al_mode_str += 'init_{}_nalr_{}'.format(self.flags.na_num_init, self.flags.nalr)
                 elif 'Drop' in al_mode_str:
                     al_mode_str += 'p_{}'.format(self.flags.dropout_p)
                 save_dir = os.path.join(self.flags.plot_dir,

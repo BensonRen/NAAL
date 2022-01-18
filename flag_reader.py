@@ -41,6 +41,7 @@ def read_flag():
     parser.add_argument('--naal-steps', default=NAAL_STEPS, type=int,  help='the number of steps that the naal is carried out')
     parser.add_argument('--na-num-init', default=NA_NUM_INIT, type=int,  help='the number of initial point for NA method')
     parser.add_argument('--na-md-radius', default=NA_MD_RADIUS, type=float,  help='radius of the md loss')
+    parser.add_argument('--nalr', default=NALR, type=float,  help='Start of the Neural adjoint loss')
     # parser.add_argument('--na-md-coeff', default=NA_MD_COEFF, type=float,  help='the coefficient of MD loss')
     parser.add_argument('--shuffle-each-model', default=SHUFFLE_EACH_MODEL, type=bool,  
                     help='Default True, we shuffle training set before each model training')
