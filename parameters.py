@@ -33,37 +33,40 @@ CONV_OUT_CHANNEL = []
 CONV_KERNEL_SIZE = []
 CONV_STRIDE = []
 
+DROPOUT_P = 0.5
+
 # Dataset related parameters
 # DATA_SET = 'sine'
-# MSE_CUTOFF = 5e-4
+# MSE_CUTOFF = 3e-4
 # BATCH_SIZE = 5000
-# NA_NUM_INIT = 100
+# NA_NUM_INIT = 10
 # AL_N_dX = 10       # The number of data points to add at each step
 # AL_N_X0 = 40      # The starting size of the dataset
 # DIM_X = 1
 # DIM_Y = 1
+# LEARN_RATE = 1e-4
 # LINEAR = [DIM_X, 20,  20, 20, 20, 20, 20, 20, 20, 20, DIM_Y]
-# REG_SCALE = 1e-5 # 0 for #1e-4
+# REG_SCALE = 0 # 0 for #1e-4
 # LR_DECAY_RATE = 0.5
 
-# DATA_SET = 'robo'
-# MSE_CUTOFF = 1e-4
-# BATCH_SIZE = 5000
-# NA_NUM_INIT = 100
-# AL_N_dX = 10       # The number of data points to add at each step
-# AL_N_X0 = 40       # The starting size of the dataset
-# DIM_X = 4
-# DIM_Y = 2
-# REG_SCALE = 1e-4 # 0 for #1e-4
-# LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
+DATA_SET = 'robo'
+MSE_CUTOFF = 1e-4
+BATCH_SIZE = 5000
+AL_N_dX = 10       # The number of data points to add at each step
+AL_N_X0 = 40       # The starting size of the dataset
+NA_NUM_INIT = AL_N_dX * 20
+DIM_X = 4
+DIM_Y = 2
+REG_SCALE = 1e-4 # 0 for #1e-4
+LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
     
 
 # DATA_SET = 'ADM'
 # MSE_CUTOFF = 2e-3
 # BATCH_SIZE = 500
-# NA_NUM_INIT = 500
-# AL_N_dX = 50       # The number of data points to add at each step
-# AL_N_X0 = 400       # The starting size of the dataset
+# AL_N_dX = 25       # The number of data points to add at each step
+# AL_N_X0 = 300       # The starting size of the dataset
+# NA_NUM_INIT = AL_N_dX * 10
 # DIM_X = 14
 # DIM_Y = 2000
 # LINEAR = [DIM_X, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1000]
@@ -89,20 +92,20 @@ CONV_STRIDE = []
 # LR_DECAY_RATE = 0.8
 
 
-DATA_SET = 'Stack'
-MSE_CUTOFF = 2e-5
-BATCH_SIZE = 2000
-NA_NUM_INIT = 200
-AL_N_dX = 5       # The number of data points to add at each step
-AL_N_X0 = 30       # The starting size of the dataset
-DIM_X = 5
-DIM_Y = 256
-LINEAR = [DIM_X, 700, 700, 700, 700, 700, 700, 700, 700, 700,  DIM_Y]
-CONV_OUT_CHANNEL = []
-CONV_KERNEL_SIZE = []
-CONV_STRIDE = []
-REG_SCALE = 0
-LR_DECAY_RATE = 0.8
+# DATA_SET = 'Stack'
+# MSE_CUTOFF = 2e-5
+# BATCH_SIZE = 2000
+# AL_N_dX = 5       # The number of data points to add at each step
+# AL_N_X0 = 30       # The starting size of the dataset
+# NA_NUM_INIT = 200
+# DIM_X = 5
+# DIM_Y = 256
+# LINEAR = [DIM_X, 700, 700, 700, 700, 700, 700, 700, 700, 700,  DIM_Y]
+# CONV_OUT_CHANNEL = []
+# CONV_KERNEL_SIZE = []
+# CONV_STRIDE = []
+# REG_SCALE = 0
+# LR_DECAY_RATE = 0.8
 
 DIM_X_LOW = [-1]
 DIM_X_HIGH = [1]
@@ -111,8 +114,8 @@ DIM_X_HIGH = [1]
 
 # Optimizer Params
 OPTIM = "Adam"
-EVAL_STEP = 100
-TRAIN_STEP = 1000
+EVAL_STEP = 1000
+TRAIN_STEP = 500
 LEARN_RATE = 1e-3
 LR_DECAY_RATE = 0.8
 STOP_THRESHOLD = 1e-9

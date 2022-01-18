@@ -64,26 +64,30 @@ class NN(nn.Module):
             else:
                 out = fc(out)                                           # For last layer, no activation function
         
-        out = out.unsqueeze(1)                                          # Add 1 dimension to get N,L_in, H
-        # For the conv part
-        for ind, conv in enumerate(self.convs):
-            #print(out.size())
-            out = conv(out)
-        S = out.squeeze(1)
-        return S
+        if self.convs:
+            out = out.unsqueeze(1)                                          # Add 1 dimension to get N,L_in, H
+            # For the conv part
+            for ind, conv in enumerate(self.convs):
+                #print(out.size())
+                out = conv(out)
+            S = out.squeeze(1)
+            return S
+        return out
 
 class Dropout_model(nn.Module):
     def __init__(self, flags):
         super(Dropout_model, self).__init__()
-        dropout_rate = 0.5
+        dropout_rate = flags.dropout_p
         # Linear Layer and Batch_norm Layer definitions here
         self.linears = nn.ModuleList([])
         # For dropout layer we would not use the batchnorm, as this is not working!!!
         self.bn_linears = nn.ModuleList([])
         self.dropouts = nn.Dropout(dropout_rate)#nn.ModuleList([])
-        for ind, fc_num in enumerate(flags.linear[0:-1]):               # Excluding the last one as we need intervals
-            self.linears.append(nn.Linear(int(fc_num / dropout_rate), int(flags.linear[ind + 1]/ dropout_rate)))
-            self.bn_linears.append(nn.BatchNorm1d(int(flags.linear[ind + 1]/dropout_rate)))#, momentum=0.01))
+        new_linear = np.copy(flags.linear)
+        new_linear[1:-1] = (np.array(new_linear[1:-1]) / (1-dropout_rate)).astype('int')
+        for ind, fc_num in enumerate(new_linear[0:-1]):               # Excluding the last one as we need intervals
+            self.linears.append(nn.Linear(fc_num, new_linear[ind + 1]))
+            self.bn_linears.append(nn.BatchNorm1d(new_linear[ind + 1]))#, momentum=0.01))
             #self.dropouts.append()
             # self.bn_linears.append(nn.LayerNorm(flags.linear[ind + 1]))
 

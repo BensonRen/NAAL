@@ -34,6 +34,9 @@ def read_flag():
     parser.add_argument('--plot-dir', default=PLOT_DIR, type=str,  help='Default None, if yes then load the testset from that folder')
     parser.add_argument('--plot', default=PLOT, type=str,  help='Default False, whether we plot the detailed plot or not')
     parser.add_argument('--plot-correlation-VAR-MSE', default=PLOT_COR_VAR_MSE, type=bool,  help='Flag to plot the correlation scattering plot of the VAR and MSE correlation')
+    parser.add_argument('--dropout-p', default=DROPOUT_P, type=float,  help='The p value of the dropout')
+    
+    
     # NAAL related
     parser.add_argument('--naal-steps', default=NAAL_STEPS, type=int,  help='the number of steps that the naal is carried out')
     parser.add_argument('--na-num-init', default=NA_NUM_INIT, type=int,  help='the number of initial point for NA method')

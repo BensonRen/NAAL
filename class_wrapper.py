@@ -69,6 +69,7 @@ class Network(object):
         # The dropout network
         if 'Dropout' in flags.al_mode:
             self.models.append(self.create_aux_model())
+            print(self.models[-1])
 
         print('len of self.models = ', len(self.models))
         self.print_model_stats()                                # Print the stats
@@ -416,7 +417,7 @@ class Network(object):
             self.models[i].load_state_dict(torch.load(os.path.join(self.ckpt_dir, 'best_model_{}.pt'.format(i)),
                                         map_location=torch.device('cpu')))
 
-    def train_single(self, model_ind, verbose=True):
+    def train_single(self, model_ind, verbose=False):
         """ (finished naal)
         The major training function. This would start the training using information given in the flags
         :param model_ind: The index of the model that would like to train
@@ -642,7 +643,7 @@ class Network(object):
         # if self.flags.al_mode == 'Dropout':
         #     return self.pred_model(0, test_X, output_numpy=True, dropout=False)
         # else:
-        Ypred_mat = self.ensemble_predict_mat(test_X， VAR=False)       # Get the Ypred mat from each model prediction
+        Ypred_mat = self.ensemble_predict_mat(test_X, VAR=False)       # Get the Ypred mat from each model prediction
         return np.mean(Ypred_mat, axis=0)
     
     def ensemble_MSE(self, test_X, test_Y):
@@ -875,9 +876,14 @@ class Network(object):
         while num_good_to_stop < self.flags.stop_criteria_num and al_step < self.flags.al_n_step_cap:
         #for al_step in range(self.flags.al_n_step):
             try: 
+                al_mode_str = self.flags.al_mode
+                if 'NA' in al_mode_str:
+                    al_mode_str += 'init_{}'.format(self.flags.na_num_init)
+                elif 'Drop' in al_mode_str:
+                    al_mode_str += 'p_{}'.format(self.flags.dropout_p)
                 save_dir = os.path.join(self.flags.plot_dir,
                 '{}_{}_retrain_{}_complexity_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set,
-                self.flags.al_mode, self.flags.reset_weight, len(self.flags.linear) - 2, self.flags.batch_size,self.flags.al_x_pool, 
+                al_mode_str, self.flags.reset_weight, len(self.flags.linear) - 2, self.flags.batch_size,self.flags.al_x_pool, 
                 self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail))
             except:
                 save_dir = 'results/fig/{}_{}_retrain_{}_complexity_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set, 
