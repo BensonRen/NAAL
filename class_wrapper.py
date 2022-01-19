@@ -17,8 +17,6 @@ from forward_models import simulator
 # Torch
 import torch
 from torch import nn
-from torch.utils.tensorboard import SummaryWriter
-# from torchsummary import summary
 from torch.optim import lr_scheduler
 from torch.utils.data import Dataset
 
@@ -385,7 +383,7 @@ class Network(object):
         :return:
         """
         return lr_scheduler.ReduceLROnPlateau(optimizer=optm, mode='min',
-                                              factor=0.1, patience=5, verbose=verbose, threshold=1e-6)
+                                              factor=self.flags.na_lr_decay_rate, patience=5, verbose=verbose, threshold=1e-6)
 
     def make_lr_scheduler(self, optm, verbose=False):
         """
@@ -887,7 +885,7 @@ class Network(object):
             try: 
                 al_mode_str = self.flags.al_mode
                 if 'NA' in al_mode_str:
-                    al_mode_str += 'init_{}_nalr_{}'.format(self.flags.na_num_init, self.flags.nalr)
+                    al_mode_str += 'init_{}_nalr_{}_decay_{}'.format(self.flags.na_num_init, self.flags.nalr, self.flags.na_lr_decay_rate)
                 elif 'Drop' in al_mode_str:
                     al_mode_str += 'p_{}'.format(self.flags.dropout_p)
                 save_dir = os.path.join(self.flags.plot_dir,
@@ -914,7 +912,7 @@ class Network(object):
             # Train again here
             self.train()
 
-            if self.flags.plot:
+            if self.flags.plot:# and 'robo' not in self.flags.data_set:
                 self.plot_both_plots(iteration_ind=al_step, save_dir=save_dir)                     # Get the trained model
 
             # Select the subset that is the best behaving

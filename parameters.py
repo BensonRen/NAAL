@@ -36,30 +36,33 @@ CONV_STRIDE = []
 DROPOUT_P = 0.5
 
 # Dataset related parameters
-DATA_SET = 'sine'
-MSE_CUTOFF = 3e-4
-BATCH_SIZE = 5000
-NA_NUM_INIT = 10
-NALR = 0.1
-AL_N_dX = 10       # The number of data points to add at each step
-AL_N_X0 = 40      # The starting size of the dataset
-DIM_X = 1
-DIM_Y = 1
-LEARN_RATE = 1e-4
-LINEAR = [DIM_X, 20,  20, 20, 20, 20, 20, 20, 20, 20, DIM_Y]
-REG_SCALE = 0 # 0 for #1e-4
-LR_DECAY_RATE = 0.8
+#DATA_SET = 'sine'
+#MSE_CUTOFF = 3e-4
+#BATCH_SIZE = 5000
+#NA_NUM_INIT = 10
+#NALR = 0.1
+#NA_LR_DECAY_RATE = 0.1
+#AL_N_dX = 10       # The number of data points to add at each step
+#AL_N_X0 = 40      # The starting size of the dataset
+#DIM_X = 1
+#DIM_Y = 1
+#LEARN_RATE = 1e-4
+#LINEAR = [DIM_X, 20,  20, 20, 20, 20, 20, 20, 20, 20, DIM_Y]
+#REG_SCALE = 0 # 0 for #1e-4
+#LR_DECAY_RATE = 0.8
 
-# DATA_SET = 'robo'
-# MSE_CUTOFF = 1e-4
-# BATCH_SIZE = 5000
-# AL_N_dX = 10       # The number of data points to add at each step
-# AL_N_X0 = 40       # The starting size of the dataset
-# NA_NUM_INIT = AL_N_dX * 20
-# DIM_X = 4
-# DIM_Y = 2
-# REG_SCALE = 1e-4 # 0 for #1e-4
-# LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
+DATA_SET = 'robo'
+MSE_CUTOFF = 1e-4
+BATCH_SIZE = 5000
+NALR = 0.1
+NA_LR_DECAY_RATE = 0.1
+AL_N_dX = 10       # The number of data points to add at each step
+AL_N_X0 = 40       # The starting size of the dataset
+NA_NUM_INIT = AL_N_dX * 20
+DIM_X = 4
+DIM_Y = 2
+REG_SCALE = 1e-4 # 0 for #1e-4
+LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
     
 
 # DATA_SET = 'ADM'

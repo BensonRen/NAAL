@@ -64,6 +64,7 @@ def hyper_sweep_AL():
     num_train_upper = 2000
     al_x_pool_factor = None
     reset_weight = False
+    n_models = 10
     # for reset_weight in [True, False]:
     # for reset_weight in [False]:
     for na_num_init in [10]:
@@ -72,8 +73,8 @@ def hyper_sweep_AL():
     # for na_num_init in [5, 10, 20, 50, 100, 1000]:
     # for reset_weight in [False]:
         # for al_mode in ['Random', 'NA']:
-        # for al_mode in ['NA']:
-        for al_mode in ['VAR']:
+        for al_mode in ['NA']:
+        #for al_mode in ['VAR']:
         # for al_mode in ['NAMD_POW']:
         # for al_mode in ['NA_Core']:
         # for al_mode in ['Dropout']:
@@ -90,15 +91,19 @@ def hyper_sweep_AL():
             # for bs in [500, 1000, 2000]:
             # for al_x_pool_factor in [0.5, 0.1, 0.2, 0.25]:       # The size of the pool divided by the number of points chosen
             # for al_x_pool_factor in [0.2]:       # The size of the pool divided by the number of points chosen
-            # for al_x_pool_factor in [0.1]:       # The size of the pool divided by the number of points chosen
-            for al_x_pool_factor in [1/2, 1/3, 1/4, 1/5, 1/10]:       # The size of the pool divided by the number of points chosen
+            #for nalr in [0.05, 0.01, 0.005, 0.001, 0.0005]:
+            for nalr in [0.0005]:
+            #for al_x_pool_factor in [0.1]:       # The size of the pool divided by the number of points chosen
+            #for al_x_pool_factor in [1/2, 1/3, 1/4, 1/5, 1/10]:       # The size of the pool divided by the number of points chosen
             # for al_x_pool_factor in [1/2, 1/3, 1/4, 1/5, 1/10]:       # The size of the pool divided by the number of points chosen
             # for al_x_pool_factor in [1/2, 1/3, 1/4, 1/5, 1/10]:       # The size of the pool divided by the number of points chosen
-                for n_models in [10]:
-                    # ii = 9
-                    # for i in range(ii, ii+1):                                      # Total number of trails to aggregate
-                    for i in range(10):                                      # Total number of trails to aggregate
-                    # for i in range(5):                                      # Total number of trails to aggregate
+                #for n_models in [10]:
+                for na_decay in [0.1]:
+                #for na_decay in [0.1, 0.3, 0.5, 0.7, 0.8, 0.9]:
+                    #ii = 0
+                    #for i in range(ii, ii+1):                                      # Total number of trails to aggregate
+                    # for i in range(10):                                      # Total number of trails to aggregate
+                    for i in range(5):                                      # Total number of trails to aggregate
                     # for i in range(5, 10):                                      # Total number of trails to aggregate
                     
                     # for i in range(2):                                      # Total number of trails to aggregate
@@ -110,6 +115,8 @@ def hyper_sweep_AL():
                         # flags.train_step = 100
                         # flags.batch_size = bs
                         # flags.train_step = 500
+                        flags.nalr = nalr
+                        flags.na_lr_decay_rate = na_decay
                         flags.reset_weight = reset_weight
                         flags.al_n_model = n_models
                         flags.al_mode = al_mode
@@ -122,7 +129,7 @@ def hyper_sweep_AL():
                         # flags.al_n_dx = al_n_dx
                         # flags.al_n_x0 = al_n_x0
                         if al_x_pool_factor is None:
-                            al_x_pool_factor = 0.2      # 5 times the pool
+                            al_x_pool_factor = 0.1      # 5 times the pool
                         flags.al_x_pool = int(flags.al_n_dx / al_x_pool_factor)
                         num_neuron_per_layer = flags.linear[1]      # This is marked here since Dropout might change and make new folder
                         # If dropout, we need to do the triple for the compensation
