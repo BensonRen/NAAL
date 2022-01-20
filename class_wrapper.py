@@ -206,7 +206,7 @@ class Network(object):
         prefix = 'test' if testset else 'data'
         return np.load(os.path.join(load_dataset, self.flags.data_set, prefix + '_x.npy')),  np.load(os.path.join(load_dataset, self.flags.data_set, prefix + '_y.npy'))
     
-    def save_flags(flags, save_dir, save_file="flags.obj"):
+    def save_flags(self, flags, save_dir, save_file="flags.obj"):
         """
         This function serialize the flag object and save it for further retrieval during inference time
         :param flags: The flags object to save
@@ -261,7 +261,7 @@ class Network(object):
             return var + BDY_loss + MD_loss, var, MD_loss/var_md_loss_ratio, BDY_loss # ALL LOSS
             # return BDY_loss + MD_loss, var, MD_loss/var_md_loss_ratio, BDY_loss  # Diversity only!!!
         self.Boundary_loss = BDY_loss
-        return torch.add(var, BDY_loss), 0, 0, 0
+        return torch.add(var, BDY_loss), var, 0, BDY_loss
 
     def make_loss(self, logit=None, labels=None, G=None, return_long=False, epoch=None, total_batch_num=1):
         """
@@ -785,6 +785,7 @@ class Network(object):
                 loss.backward(retain_graph=True)
                 self.optm_na.step()
 
+                print('in AL step {}, NA step {}, VAR = {}'.format(step_num, i, var_loss.detach().cpu().numpy()))
                 # Debugging purpose code:
                 # print('debugging in NAMD backproping')
                 if md:
@@ -823,6 +824,10 @@ class Network(object):
             else:    
                 # Finished the backprop, get the list
                 pool_x = na_pool.cpu().detach().numpy()
+                # This is to make sure all pool_x are within the range, although we have the boundary loss, currently there are still very small of them
+                pool_x_random_within = np.random.random(size=np.shape(pool_x)) * 2 - 1
+                pool_x[np.abs(pool_x) > 1] = pool_x_random_within[np.abs(pool_x) > 1]
+                assert np.sum(np.abs(pool_x) > 1) == 0, 'There are points out of domain, check!'
                 pool_y = self.simulator(self.dataset, pool_x)
                 ensembled = torch.mean(logit, dim=0).unsqueeze(0).repeat(self.n_model, 1, 1)
                 var = nn.functional.mse_loss(logit, ensembled, reduction='none').cpu().detach().numpy()
@@ -963,7 +968,7 @@ class Network(object):
         # self.plot_train_loss_tracker(save_dir=save_dir)
 
         # Save the flag for record purpose
-        self.save_flags(save_dir)
+        self.save_flags(self.flags, save_dir)
 
         # Make sure all the figures are closed
         plt.close('all')
@@ -1043,7 +1048,7 @@ class Network(object):
         plt.hist(self.data_x, bins=100)
         if self.additional_X is not None:
             plt.hist(self.additional_X, bins=100, label='added', alpha=0.4)
-        plt.xlim([self.flags.dim_x_low[0], self.flags.dim_x_high[0]])
+        # plt.xlim([self.flags.dim_x_low[0], self.flags.dim_x_high[0]])
         plt.xlabel('x')
         plt.ylabel('frequency')
         plt.title('training data distribution @ iteration {}, total #= {} '.format(iteration_ind, len(self.data_x)))
@@ -1052,7 +1057,7 @@ class Network(object):
         if fig_ax is None:
             plt.savefig(os.path.join(save_dir, 'train_distribution_@iter_{}'.format(iteration_ind)))
         # Save the data_x distribution into numpy file
-        np.savetxt(os.path.join(save_dir, 'final_x.npy'), self.data_x)
+        np.save(os.path.join(save_dir, 'final_x.npy'), self.data_x)
 
     def plot_sine_debug_plot(self, iteration_ind, save_dir, fig_ax=None):
         """
@@ -1087,7 +1092,7 @@ class Network(object):
         plt.plot(all_x, np.abs(all_y - avg_y), label='sqrt(MSE)')
         plt.fill_between(np.ravel(all_x), np.ravel(avg_y-std_y), np.ravel(avg_y+std_y), 
                         alpha=0.3,label='std')
-        plt.xlim([self.flags.dim_x_low[0], self.flags.dim_x_high[0]])
+        # plt.xlim([self.flags.dim_x_low[0], self.flags.dim_x_high[0]])
         plt.legend()
         plt.xlabel('x')
         plt.ylabel('y')

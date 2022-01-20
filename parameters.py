@@ -20,7 +20,7 @@ AL_TEST_N = 4000
 AL_X_POOL = 500
 BOOTSTRAP = 0     # Bootstraping the training dataset for each of the models during training
 LOAD_DATASET = None
-LOAD_TESTSET =  None#'saved_datasets'
+LOAD_TESTSET =  'saved_datasets'
 RESET_WEIGHT = False 
 PLOT_COR_VAR_MSE = True
 PLOT = True
@@ -36,48 +36,51 @@ CONV_STRIDE = []
 DROPOUT_P = 0.5
 
 # Dataset related parameters
-#DATA_SET = 'sine'
-#MSE_CUTOFF = 3e-4
-#BATCH_SIZE = 5000
-#NA_NUM_INIT = 10
-#NALR = 0.1
-#NA_LR_DECAY_RATE = 0.1
-#AL_N_dX = 10       # The number of data points to add at each step
-#AL_N_X0 = 40      # The starting size of the dataset
-#DIM_X = 1
-#DIM_Y = 1
-#LEARN_RATE = 1e-4
-#LINEAR = [DIM_X, 20,  20, 20, 20, 20, 20, 20, 20, 20, DIM_Y]
-#REG_SCALE = 0 # 0 for #1e-4
-#LR_DECAY_RATE = 0.8
-
-DATA_SET = 'robo'
-MSE_CUTOFF = 1e-4
+DATA_SET = 'sine'
+MSE_CUTOFF = 3e-4
 BATCH_SIZE = 5000
-NALR = 0.1
+NA_NUM_INIT = 10
+NALR = 0.01
 NA_LR_DECAY_RATE = 0.1
 AL_N_dX = 10       # The number of data points to add at each step
-AL_N_X0 = 40       # The starting size of the dataset
-NA_NUM_INIT = AL_N_dX * 20
-DIM_X = 4
-DIM_Y = 2
-REG_SCALE = 1e-4 # 0 for #1e-4
-LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
+AL_N_X0 = 40      # The starting size of the dataset
+DIM_X = 1
+DIM_Y = 1
+LEARN_RATE = 1e-4
+LINEAR = [DIM_X, 20,  20, 20, 20, 20, 20, 20, 20, 20, DIM_Y]
+REG_SCALE = 0 # 0 for #1e-4
+LR_DECAY_RATE = 0.8
+
+# DATA_SET = 'robo'
+# MSE_CUTOFF = 1e-4
+# BATCH_SIZE = 5000
+# NALR = 0.1
+# NA_LR_DECAY_RATE = 0.1
+# AL_N_dX = 10       # The number of data points to add at each step
+# AL_N_X0 = 40       # The starting size of the dataset
+# NA_NUM_INIT = AL_N_dX * 20
+# DIM_X = 4
+# DIM_Y = 2
+# REG_SCALE = 1e-4 # 0 for #1e-4
+# LINEAR = [DIM_X, 500, 500, 500, 500, DIM_Y]
     
 
 # DATA_SET = 'ADM'
-# MSE_CUTOFF = 2e-3
+# AL_N_MODEL = 5     # The number of models
+# MSE_CUTOFF = 2.5e-3
 # BATCH_SIZE = 500
-# AL_N_dX = 25       # The number of data points to add at each step
+# NALR = 0.005
+# NA_LR_DECAY_RATE = 0.5
+# AL_N_dX = 50       # The number of data points to add at each step
 # AL_N_X0 = 300       # The starting size of the dataset
-# NA_NUM_INIT = AL_N_dX * 10
+# NA_NUM_INIT = AL_N_dX * 1
 # DIM_X = 14
 # DIM_Y = 2000
 # LINEAR = [DIM_X, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1000]
 # CONV_OUT_CHANNEL = [4, 4, 4]
 # CONV_KERNEL_SIZE = [4, 3, 3]
 # CONV_STRIDE = [2, 1, 1]
-# REG_SCALE = 1e-7
+# REG_SCALE = 0
 
 
 # DATA_SET = 'Shell'
@@ -120,7 +123,7 @@ DIM_X_HIGH = [1]
 OPTIM = "Adam"
 EVAL_STEP = 1000
 TRAIN_STEP = 500
-LEARN_RATE = 1e-3
+LEARN_RATE = 5e-3
 LR_DECAY_RATE = 0.8
 STOP_THRESHOLD = 1e-9
 
