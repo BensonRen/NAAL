@@ -11,7 +11,7 @@ AL_N_STEP_CAP = 300      # Total number of steps of the datapoint
 AL_N_MODEL = 10     # The number of models
 AL_MODE = 'Random'     # The Active Learning mode, MSE means using the true forward error
 # AL_MODE = 'NA'     # The Active Learning mode, MSE means using the true forward error
-NAAL_STEPS = 100
+NAAL_STEPS = 300
 NA_MD_RADIUS = 0.05
 # NA_MD_COEFF = 100
 

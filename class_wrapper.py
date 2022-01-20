@@ -825,8 +825,10 @@ class Network(object):
                 # Finished the backprop, get the list
                 pool_x = na_pool.cpu().detach().numpy()
                 # This is to make sure all pool_x are within the range, although we have the boundary loss, currently there are still very small of them
-                pool_x_random_within = np.random.random(size=np.shape(pool_x)) * 2 - 1
-                pool_x[np.abs(pool_x) > 1] = pool_x_random_within[np.abs(pool_x) > 1]
+                pool_x[pool_x > 1] = 1 - 0.005* np.random.random(1)              # Effectively make it close to the boundary
+                pool_x[pool_x < -1] = -1 + 0.005* np.random.random(1)            # Effectively make it close to the boundary
+                #pool_x_random_within = np.random.random(size=np.shape(pool_x)) * 2 - 1
+                #pool_x[np.abs(pool_x) > 1] = pool_x_random_within[np.abs(pool_x) > 1]
                 assert np.sum(np.abs(pool_x) > 1) == 0, 'There are points out of domain, check!'
                 pool_y = self.simulator(self.dataset, pool_x)
                 ensembled = torch.mean(logit, dim=0).unsqueeze(0).repeat(self.n_model, 1, 1)
