@@ -771,7 +771,7 @@ class Network(object):
             
             # Record the different losses
             var_loss_list, md_loss_list, bdy_loss_list = [], [], []
-
+            var_max = 0         # Initialize the starting var loss (var goes down from 0)
             # Start the back propagating process
             for i in range(self.flags.naal_steps):
                 na_pool = na_pool_raw * self.build_tensor(X_range) + self.build_tensor(X_lower_bound)
@@ -785,7 +785,11 @@ class Network(object):
                 loss.backward(retain_graph=True)
                 self.optm_na.step()
 
-                print('in AL step {}, NA step {}, VAR = {}'.format(step_num, i, var_loss.detach().cpu().numpy()))
+                if var_loss < var_max:  # This is lower, add this 
+                    pool_x = na_pool.cpu().detach().numpy()
+                    var_max = var_loss
+                # Record the best one
+                # print('in AL step {}, NA step {}, VAR = {}'.format(step_num, i, var_loss.detach().cpu().numpy()))
                 # Debugging purpose code:
                 # print('debugging in NAMD backproping')
                 if md:
@@ -795,6 +799,8 @@ class Network(object):
                 # print(logit)
             
             if md: # Some diagonostics for NAMD method for plotting
+                ####
+                # !!! after taking the max var point, this chunk of code can be wrong #
                 # Plot the loss
                 f = plt.figure()
                 ax = plt.subplot(211)
@@ -806,6 +812,8 @@ class Network(object):
                 plt.savefig(os.path.join(save_dir, 'NAMD backprop at step {} .png'.format(step_num)))
 
             if 'Core' in self.flags.al_mode:
+                ####
+                # !!! after taking the max var point, this chunk of code can be wrong #
                 X_train, x_pool, X_add = self.data_x, na_pool.cpu().detach().numpy(), np.zeros([self.flags.al_n_dx, self.flags.dim_x])
                 for i in range(self.flags.al_n_dx):        # Adding the points one-by-one
                     dist = pairwise_distances(X_train, x_pool, metric='euclidean')      # Get the pair-wise distance
@@ -823,7 +831,7 @@ class Network(object):
                 index = range(len(pool_x))
             else:    
                 # Finished the backprop, get the list
-                pool_x = na_pool.cpu().detach().numpy()
+                # pool_x = na_pool.cpu().detach().numpy()
                 # This is to make sure all pool_x are within the range, although we have the boundary loss, currently there are still very small of them
                 pool_x[pool_x > 1] = 1 - 0.005* np.random.random(1)              # Effectively make it close to the boundary
                 pool_x[pool_x < -1] = -1 + 0.005* np.random.random(1)            # Effectively make it close to the boundary
