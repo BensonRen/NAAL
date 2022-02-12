@@ -706,7 +706,7 @@ class Network(object):
             pool_chosen_one_mse = np.mean(pool_mse[index[-self.flags.al_n_dx:]])
             #print('the mean mse of the whole pool is {}'.format(pool_mse_mean))
             #print('the mean mse of chosen ones {}'.format(pool_chosen_one_mse))
-        elif self.flags.al_mode == 'VAR' or self.flags.al_mode == 'Dropout':
+        elif  'VAR' in self.flags.al_mode or 'Dropout' in self.flags.al_mode:
             pool_VAR, pool_x_pred_y_mat = self.ensemble_VAR(pool_x)
             index = np.argsort(pool_VAR)
             if self.flags.plot_correlation_VAR_MSE:
@@ -728,6 +728,27 @@ class Network(object):
                 if not os.path.isdir(save_dir):
                     os.makedirs(save_dir)
                 plt.savefig(os.path.join(save_dir, 'VAR_MSE_correlation_step{}.png'.format(step_num)))
+            
+            if 'Core' in self.flags.al_mode:
+                """
+                QBC sift till there are 2 dx number of points left, and core-set always choose dx from 2dx proposals
+                """
+                X_train, x_pool, X_add = self.data_x, pool_x[index[-self.flags.al_n_dx*2:]], np.zeros([self.flags.al_n_dx, self.flags.dim_x])
+                for i in range(self.flags.al_n_dx):        # Adding the points one-by-one
+                    dist = pairwise_distances(X_train, x_pool, metric='euclidean')      # Get the pair-wise distance
+                    # print('shape of dist mat', np.shape(dist))
+                    D_min = np.min(dist, axis=0).reshape(-1, 1)                         # Take the min (closest neighbor)
+                    # print('shape of D_min', np.shape(D_min))
+                    max_min_D = np.argmax(D_min)                                        # Get the one with the furthest neighbour
+                    X_add[i, :] = x_pool[max_min_D, :]                                  # Add this to the list
+                    #X_add.append(x_pool[np.argmax(D_min), :])                          # Add this to the list
+                    X_train = np.vstack((X_train, x_pool[max_min_D, :]))                # Take this into the training set
+                    # print('shape of X_train', np.shape(X_train))
+                    x_pool = np.delete(x_pool, np.argmax(D_min), 0)                     # Remove this added one 
+                pool_x = X_add      # Update the pool
+                pool_y = self.simulator(self.dataset, pool_x)
+                index = range(len(pool_x))
+
         elif self.flags.al_mode == 'Random':
             # Two ways of random, the first is to permute as below, however, this would interupt the random state of numpy, therefore for reproducibility we use the other
             # index = np.random.permutation(len(pool_x))
@@ -761,7 +782,10 @@ class Network(object):
             # Get the optimizer
             self.optm_na = self.make_optimizer(model_index=0, params=[na_pool_raw])
             self.lr_scheduler_na = self.make_NA_lr_scheduler(self.optm_na)
+            # Set to evaluation mode
             self.models[0].eval()
+            # Record the starting point
+            na_start_pool = na_pool_raw.cpu().detach().numpy() * 2 - 1
             
             # MD switch
             if 'MD' in self.flags.al_mode:
@@ -798,6 +822,12 @@ class Network(object):
                     bdy_loss_list.append(bdy_loss.detach().cpu().numpy())
                 # print(logit)
             
+            # Calculate the average distance travelled (excluding the things wandered out)
+            na_final = na_pool.cpu().detach().numpy()
+            dist = na_start_pool[np.abs(na_final) < 1] - na_final[np.abs(na_final) < 1] 
+            avg_dist = np.mean(np.abs(dist))
+            with open(os.path.join(save_dir, 'NA_dist_traveled.txt'), 'a') as f:
+                f.write('AL step: {}, average distance NA traveled: {} \n'.format(step_num, avg_dist))
             if md: # Some diagonostics for NAMD method for plotting
                 ####
                 # !!! after taking the max var point, this chunk of code can be wrong #
@@ -868,9 +898,6 @@ class Network(object):
             print('Your Active Learning mode is wrong, check again!')
             1/0     # Manuall stop to print the stack as well
         return pool_x[index[-self.flags.al_n_dx:]], pool_y[index[-self.flags.al_n_dx:]], pool_x_pred_y, pool_y, index, pool_mse_mean, pool_chosen_one_mse, var_mse_coreff, tau
-    
-    def build_tensor(self, nparray, requires_grad=False):
-        return torch.tensor(nparray, requires_grad=requires_grad, device='cuda', dtype=torch.float)
 
     def add_noise_initialize(self, noise_factor=2):
         """
