@@ -35,6 +35,8 @@ def read_flag():
     parser.add_argument('--plot', default=PLOT, type=str,  help='Default False, whether we plot the detailed plot or not')
     parser.add_argument('--plot-correlation-VAR-MSE', default=PLOT_COR_VAR_MSE, type=bool,  help='Flag to plot the correlation scattering plot of the VAR and MSE correlation')
     parser.add_argument('--dropout-p', default=DROPOUT_P, type=float,  help='The p value of the dropout')
+    parser.add_argument('--w-div', default=W_DIV, type=float,  help='The diversity weight added to the QBC-diversity method from QBC improvement with diversity and density in batch active learning')
+    parser.add_argument('--w-den', default=W_DEN, type=float,  help='The density weight added to the QBC-diversity-density method from QBC improvement with diversity and density in batch active learning')
     
     
     # NAAL related

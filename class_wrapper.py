@@ -691,6 +691,8 @@ class Network(object):
         """
         Select the additional X from a pool (that is randomly generated)
         """
+        def NormalizeData(data):
+            return (data - np.min(data)) / (np.max(data) - np.min(data))
         pool_x = self.random_sample_X(self.flags.al_x_pool)                 # Generate some random samples for making the pool
         #if step_num != None:
         #    print('in step {}, the sum of pool x is {}'.format(step_num, np.sum(pool_x)))
@@ -737,7 +739,7 @@ class Network(object):
                 for i in range(self.flags.al_n_dx):        # Adding the points one-by-one
                     dist = pairwise_distances(X_train, x_pool, metric='euclidean')      # Get the pair-wise distance
                     # print('shape of dist mat', np.shape(dist))
-                    D_min = np.min(dist, axis=0).reshape(-1, 1)                         # Take the min (closest neighbor)
+                    D_min = np.min(dist, axis=0).reshape(-1, )                         # Take the min (closest neighbor)
                     # print('shape of D_min', np.shape(D_min))
                     max_min_D = np.argmax(D_min)                                        # Get the one with the furthest neighbour
                     X_add[i, :] = x_pool[max_min_D, :]                                  # Add this to the list
@@ -745,6 +747,58 @@ class Network(object):
                     X_train = np.vstack((X_train, x_pool[max_min_D, :]))                # Take this into the training set
                     # print('shape of X_train', np.shape(X_train))
                     x_pool = np.delete(x_pool, np.argmax(D_min), 0)                     # Remove this added one 
+                pool_x = X_add      # Update the pool
+                pool_y = self.simulator(self.dataset, pool_x)
+                index = range(len(pool_x))
+            elif 'Div_Den' in self.flags.al_mode:
+                """
+                QBC with diversity and density in "Qeury-by-committee improvement with diversity and density in batch active learning", 2018
+                Diversity only would be taking w_den = 0
+                Density only would be taking w_div = 0
+                """
+                X_train, x_pool, X_add = self.data_x, np.copy(pool_x), np.zeros([self.flags.al_n_dx, self.flags.dim_x])
+                # Normalize pool_VAR
+                pool_VAR = NormalizeData(pool_VAR)
+                for i in range(self.flags.al_n_dx):        # Adding the points one-by-one
+                    #############
+                    # Diversity #
+                    #############
+                    if self.flags.w_div > 0:
+                        dist = pairwise_distances(X_train, x_pool, metric='euclidean')      # Get the pair-wise distance
+                        # print('shape of dist mat', np.shape(dist))
+                        D_min = np.min(dist, axis=0).reshape(-1, )                         # Take the min (closest neighbor)
+                        # Normalize D_min into [0, 1] by dividing the largest
+                        D_min = NormalizeData(D_min)
+                        ## Work the cosine similarity now
+                    else:
+                        D_min = np.zeros_like(pool_VAR)
+                    #############
+                    # Density   #
+                    #############
+                    if self.flags.w_den > 0:
+                        # First get the pairwise distance
+                        dist = pairwise_distances(x_pool, x_pool, metric='cosine')
+                        # Sort he distance matrix
+                        dist.sort(axis=1)
+                        # Calculate the similarity score by taking averageg of the 10 NN (judged by cosine)
+                        similarity = np.mean(dist[:, :10], axis=1)
+                        # Normalize similarity
+                        similarity = NormalizeData(similarity)
+                    else:
+                        similarity = np.zeros_like(pool_VAR)
+
+                    # print('shape of D_min', np.shape(D_min))
+                    # print('shape of pool_VAR', np.shape(pool_VAR))
+                    Div_n_Var_metric = (1-self.flags.w_div - self.flags.w_den) * pool_VAR + self.flags.w_div * D_min + self.flags.w_den * similarity
+                    # print('shape of Div_n_Var_metric', np.shape(Div_n_Var_metric))
+                    max_min_D = np.argmax(Div_n_Var_metric)                             # Get the one with the furthest neighbour
+                    # print('shape of x_pool {}'.format(np.shape(x_pool)))
+                    X_add[i, :] = x_pool[max_min_D, :]                                  # Add this to the list
+                    #X_add.append(x_pool[np.argmax(D_min), :])                          # Add this to the list
+                    X_train = np.vstack((X_train, x_pool[max_min_D, :]))                # Take this into the training set
+                    # print('shape of X_train', np.shape(X_train))
+                    x_pool = np.delete(x_pool, max_min_D, 0)          # Remove this added one 
+                    pool_VAR = np.delete(pool_VAR, max_min_D, 0)      # Remove this added one in the pool as well
                 pool_x = X_add      # Update the pool
                 pool_y = self.simulator(self.dataset, pool_x)
                 index = range(len(pool_x))
