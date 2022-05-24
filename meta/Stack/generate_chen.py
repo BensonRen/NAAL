@@ -599,7 +599,7 @@ def simuate_single(x, scaled_cheb, map2, n_spct):
             dataY[row, 2] = A
         return dataY[0:n_spct, 2]
 
-def multi_process_simulate(Xpred, num_cpu = 2):
+def multi_process_simulate(Xpred, num_cpu = 5):
     # Ypred_save = np.zeros([len(Xpred), 256])
     # The multiprocessing step for the Chen simuation
     # ' Generates y from x data '

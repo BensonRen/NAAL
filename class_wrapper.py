@@ -21,7 +21,8 @@ from torch.optim import lr_scheduler
 from torch.utils.data import Dataset
 
 from sklearn.metrics import pairwise_distances
-from model_maker import Dropout_model
+from model_maker import NN, NAAL, Dropout_model
+
 # Libs
 import numpy as np
 from math import inf
@@ -109,13 +110,17 @@ class Network(object):
         The auxiliary model, now it is the dropout model
         """
         if 'Dropout' in self.flags.al_mode:         # THis is dropout mode
-            return Dropout_model(self.flags)
+            dropout_model = Dropout_model(self.flags)
+            print('creting dropout model')
+            self.print_model_stats(dropout_model)
+            return dropout_model
 
-    def print_model_stats(self):
+    def print_model_stats(self, model=None):
         """
         print the model statistics and total number of trainable paramter
         """
-        model = self.models[0]
+        if model is None:
+            model = self.models[0]
         print(model)
         pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print("Total Number of Parameters: {}".format(pytorch_total_params))
@@ -285,7 +290,9 @@ class Network(object):
                 # print('in make loss, logit size', logit.size())
                 # print('in make loss, label size',labels.size())
                 # print('naal')
-                MSE_loss = nn.functional.mse_loss(logit, labels.unsqueeze(0).repeat(self.n_model, 1, 1))
+                new_label = labels.unsqueeze(0).repeat(self.n_model, 1, 1)
+                # print('shape of the new created label for naal:', new_label.size())
+                MSE_loss = nn.functional.mse_loss(logit, new_label )
                 # for i in range(self.flags.al_n_model):
                 #     mse = nn.functional.mse_loss(logit[i, :, :], labels)
                 #     MSE_loss += mse
@@ -424,7 +431,7 @@ class Network(object):
             self.models[i].load_state_dict(torch.load(os.path.join(self.ckpt_dir, 'best_model_{}.pt'.format(i)),
                                         map_location=torch.device('cpu')))
 
-    def train_single(self, model_ind, verbose=False):
+    def train_single(self, model_ind, verbose=True):
         """ (finished naal)
         The major training function. This would start the training using information given in the flags
         :param model_ind: The index of the model that would like to train
@@ -677,6 +684,10 @@ class Network(object):
         They are all in numpy format
         plot_first_y: Plotting the first Y value to look at it, debugging purpose
         """
+        # Save those extra data_x if
+        if save_dir:
+            np.save(os.path.join(save_dir, 'data_x_step_{}.npy'.format(step_num)), additional_X)
+
         # Simulate Y if it is not provided
         if additional_Y is None:
             additional_Y = self.simulator(self.dataset, additional_X)
@@ -810,7 +821,7 @@ class Network(object):
             index = range(len(pool_x))
         elif self.flags.al_mode == 'Core-set':
                 # # Setting up the pool, labelled set and the place holder for the chosen ones 
-                X_train, x_pool, X_add = self.data_x, self.random_sample_X(2048), np.zeros([self.flags.al_n_dx, self.flags.dim_x])
+                X_train, x_pool, X_add = self.data_x, pool_x, np.zeros([self.flags.al_n_dx, self.flags.dim_x])
                 for i in range(self.flags.al_n_dx):        # Adding the points one-by-one
                     dist = pairwise_distances(X_train, x_pool, metric='euclidean')      # Get the pair-wise distance
                     # print('shape of dist mat', np.shape(dist))
@@ -976,27 +987,29 @@ class Network(object):
         test_set_mse, train_set_mse, mse_pool, mse_selected_pool, mse_selected_after_train, var_mse_coreff_list, var_mse_tau = [], [], [], [], [], [], []
         # Active learning part
         al_step, num_good_to_stop = 0, 0    # Initialize some looping variables
+        try: 
+            al_mode_str = self.flags.al_mode
+            if 'NA' in al_mode_str:
+                al_mode_str += 'init_{}_nalr_{}_decay_{}'.format(self.flags.na_num_init, self.flags.nalr, self.flags.na_lr_decay_rate)
+            elif 'Drop' in al_mode_str:
+                al_mode_str += 'p_{}'.format(self.flags.dropout_p)
+            save_dir = os.path.join(self.flags.plot_dir,
+            '{}_{}_retrain_{}_complexity_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set,
+            al_mode_str, self.flags.reset_weight, len(self.flags.linear) - 2, self.flags.batch_size,self.flags.al_x_pool, 
+            self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail))
+        except:
+            save_dir = 'results/fig/{}_{}_retrain_{}_complexity_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set, 
+            self.flags.al_mode, self.flags.reset_weight, len(self.flags.linear) - 2, self.flags.batch_size,self.flags.al_x_pool, self.flags.al_n_dx, 
+            self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail)
+        # Make sure this is not missed
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        # save the starting data x
+        np.save(os.path.join(save_dir, 'data_x_start.npy'), self.data_x)
+
         while num_good_to_stop < self.flags.stop_criteria_num and al_step < self.flags.al_n_step_cap:
         #for al_step in range(self.flags.al_n_step):
-            try: 
-                al_mode_str = self.flags.al_mode
-                if 'NA' in al_mode_str:
-                    al_mode_str += 'init_{}_nalr_{}_decay_{}'.format(self.flags.na_num_init, self.flags.nalr, self.flags.na_lr_decay_rate)
-                elif 'Drop' in al_mode_str:
-                    al_mode_str += 'p_{}'.format(self.flags.dropout_p)
-                save_dir = os.path.join(self.flags.plot_dir,
-                '{}_{}_retrain_{}_complexity_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set,
-                al_mode_str, self.flags.reset_weight, len(self.flags.linear) - 2, self.flags.batch_size,self.flags.al_x_pool, 
-                self.flags.al_n_dx, self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail))
-            except:
-                save_dir = 'results/fig/{}_{}_retrain_{}_complexity_{}_bs_{}_pool_{}_dx_{}_step_{}_x0_{}_nmod_{}_trail_{}'.format(self.flags.data_set, 
-                self.flags.al_mode, self.flags.reset_weight, len(self.flags.linear) - 2, self.flags.batch_size,self.flags.al_x_pool, self.flags.al_n_dx, 
-                self.flags.al_n_step, self.flags.al_n_x0, self.flags.al_n_model, trail)
-            
-            # Make sure this is not missed
-            if not os.path.isdir(save_dir):
-                os.makedirs(save_dir)
-            
+
             # Adding the noise in the network prior
             # if al_step == 0:
             #     self.add_noise_initialize()
@@ -1027,7 +1040,7 @@ class Network(object):
             additional_X, additional_Y, pool_x_pred_y, pool_y, index, pool_mse, pool_chosen_mse, var_mse_coreff, tau = self.get_additional_X(save_dir=save_dir, step_num=al_step)
             
             # Put them into training set
-            self.add_X_into_trainset(additional_X, additional_Y)
+            self.add_X_into_trainset(additional_X, additional_Y, save_dir=save_dir, step_num=al_step)
             self.additional_X = additional_X 
             
             # Adding things to list for post processing
@@ -1253,9 +1266,10 @@ class Network(object):
         if 'sin' in self.flags.data_set:
             self.get_training_data_distribution(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
             self.plot_sine_debug_plot(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
+            f.savefig(os.path.join(save_dir, 'both_plot_@iter_{}'.format(iteration_ind)))
         elif self.flags.data_set in ['Stack', 'ADM']:
             self.plot_meta_debug_plot(iteration_ind=iteration_ind, save_dir=save_dir, fig_ax=f)
-        f.savefig(os.path.join(save_dir, 'both_plot_@iter_{}'.format(iteration_ind)))
+            f.savefig(os.path.join(save_dir, 'both_plot_@iter_{}'.format(iteration_ind)))
         plt.cla()
 
     def plot_train_loss_tracker(self, save_dir='results/fig'):

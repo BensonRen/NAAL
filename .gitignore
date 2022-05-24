@@ -1,8 +1,10 @@
 # Get some files for ignoring
-meta/
 sample_Y.png
 saved_*/
 debug/
+
+# Don't add the ADM dataset as it is pretty big, download from data source
+meta/ADM
 
 train{0,1,2,3,4}.py
 
@@ -26,5 +28,6 @@ __*
 #PID file
 pidfile*
 
+# The running scripts
 *.sh
 waitn*

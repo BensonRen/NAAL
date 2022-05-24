@@ -83,11 +83,14 @@ class Dropout_model(nn.Module):
         # For dropout layer we would not use the batchnorm, as this is not working!!!
         self.bn_linears = nn.ModuleList([])
         self.dropouts = nn.Dropout(dropout_rate)#nn.ModuleList([])
+        # self.dropout_layers = nn.ModuleList([])
         new_linear = np.copy(flags.linear)
-        new_linear[1:-1] = (np.array(new_linear[1:-1]) / (1-dropout_rate)).astype('int')
+        # new_linear[1:-1] = (np.array(new_linear[1:-1]) / (1-dropout_rate)).astype('int')        # Increase the size to get same size after dropout
+        new_linear[1:-1] = (np.array(new_linear[1:-1]) / np.sqrt(10)).astype('int')        # Increase size to get 10 times parameters
         for ind, fc_num in enumerate(new_linear[0:-1]):               # Excluding the last one as we need intervals
             self.linears.append(nn.Linear(fc_num, new_linear[ind + 1]))
             self.bn_linears.append(nn.BatchNorm1d(new_linear[ind + 1]))#, momentum=0.01))
+            # self.dropout_layers.append(nn.Dropout(dropout_rate))
             #self.dropouts.append()
             # self.bn_linears.append(nn.LayerNorm(flags.linear[ind + 1]))
 
@@ -124,12 +127,14 @@ class Dropout_model(nn.Module):
             # print(out)
             # print(out.size())
             if ind != len(self.linears) - 1:
-                out = F.leaky_relu(fc(out))                                   # ReLU + BN + Linear
+                # out = F.leaky_relu(fc(out))                                   # ReLU + BN + Linear
+                out = F.relu(fc(out))                                   # ReLU + BN + Linear
                 # print(out)
                 # out = F.leaky_relu(bn(fc(out)))                                   # ReLU + BN + Linear
-                if ind == len(self.linears) - 2:
+                # if ind == len(self.linears) - 2:
                 # if ind == len(self.linears) - 4:
-                    out = self.dropouts(out)
+                out = self.dropouts(out)
+                # out = self.dropout_layers[ind](out)
                 # out = F.relu(fc(out))
                 # out = F.leaky_relu(bn(fc(out)))       
                 # out = F.leaky_relu(fc(out))    

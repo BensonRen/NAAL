@@ -27,7 +27,13 @@ def AL_from_flag(flags, trail=0):
     :param flag: The training flags read from command line or parameter.py
     :return: None
     """
-    model_fn = NAAL if flags.naal else NN
+    # if 'Drop' in flags.al_mode:
+    #     model_fn = Dropout_model
+    # elif flags.nall:
+    #     model_fn = NAAL
+    # else:
+    #     model_fn = NN
+    model_fn = NAAL if flags.naal else NN                                   # Use the NAAL model for all, dropout is auxiliary model
     # model_fn = Dropout_model if 'Drop' in flags.al_mode else NAAL         # This is the model for dropout
     # Make Network
     ntwk = Network(model_fn, flags)
@@ -71,14 +77,18 @@ def hyper_sweep_AL():
     # for na_num_init in [20, 50, 100, 1000]:
     # for na_num_init in [5, 10, 20, 50, 100, 1000]:
     # for reset_weight in [False]:
-        # for al_mode in ['Random']:
-        for al_mode in ['NA']:
-        # for al_mode in ['VAR']:
-        # for al_mode in ['NAMD_POW']:
-        # for al_mode in ['NA_Core']:
-        # for al_mode in ['Dropout']:
-        # for al_mode in ['Core-set']:
-        # for al_mode in ['MSE']:
+        #for al_mode in ['Random', 'NA']:
+        #for al_mode in ['NA']:
+        #for al_mode in ['VAR-Core']:
+        #for al_mode in ['VAR']:
+        #for al_mode in ['VAR_Div_Den']: # The Diversity only one, naming historically
+        #for al_mode in ['VAR_Div_Den_0.3_0.3']:
+        #for al_mode in ['Random']:
+        #for al_mode in ['NAMD_POW']:
+        #for al_mode in ['NA_Core']:
+        for al_mode in ['Dropout']:
+        #for al_mode in ['Core-set']:
+        #for al_mode in ['MSE']:
         # for al_mode in ['Random','Core-set','VAR']:
             # for al_n_step in [-1]:
             #for al_n_step in [20]:
@@ -89,25 +99,30 @@ def hyper_sweep_AL():
             # for bs in [200]:
             # for bs in [500, 1000, 2000]:
             # for al_x_pool_factor in [0.5, 0.1, 0.2, 0.25]:       # The size of the pool divided by the number of points chosen
-            # for al_x_pool_factor in [0.2]:       # The size of the pool divided by the number of points chosen
+            # for al_x_pool_factor in [1/10]:       # The size of the pool divided by the number of points chosen
             #for nalr in [0.05, 0.01, 0.005, 0.001, 0.0005]:
-            # for nalr in [0.005]:
-            # for al_x_pool_factor in [0.1]:       # The size of the pool divided by the number of points chosen
-            for al_x_pool_factor in [1/3]:       # The size of the pool divided by the number of points chosen
-            # for al_x_pool_factor in [1/2, 1/3]:     # The size of the pool divided by the number of points chosen
-            # for al_x_pool_factor in [1/4, 1/5]:       # The size of the pool divided by the number of points chosen
-            # for al_x_pool_factor in [1/10, 1/20]:       # The size of the pool divided by the number of points chosen
+            # for nalr in [0.005, 0.001]:
+            # for nalr in [0.001]:
+            #for al_x_pool_factor in [1]:       # The size of the pool divided by the number of points chosen
+            for al_x_pool_factor in [1/2]:       # The size of the pool divided by the number of points chosen
+            #for al_x_pool_factor in [1/2, 1/8, 1/64]:       # The size of the pool divided by the number of points chosen
+            #for al_x_pool_factor in [1/4, 1/16, 1/32]:       # The size of the pool divided by the number of points chosen
+            
+            #for al_x_pool_factor in [1/2, 1/4]:     # The size of the pool divided by the number of points chosen
+            #for al_x_pool_factor in [1/8, 1/16]:       # The size of the pool divided by the number of points chosen\
+            #for al_x_pool_factor in [1/32, 1/64]:       # The size of the pool divided by the number of points chosen
+            #for al_x_pool_factor in [1/128, 1/256]:       # The size of the pool divided by the number of points chosen
                 #for n_models in [10]:
-                for na_decay in [0.9]:
+                for na_decay in [0.1]:
                 #for na_decay in [0.1, 0.3, 0.5, 0.7, 0.8, 0.9]:
-                    # ii = 0
-                    # for i in range(ii, ii+1):                                      # Total number of trails to aggregate
-                    # for i in range(10):                                      # Total number of trails to aggregate
-                    for i in range(1, 5):                                      # Total number of trails to aggregate
-                    # for i in range(5, 10):                                      # Total number of trails to aggregate
+                    #ii = 4
+                    #for i in range(ii, ii+1):                                      # Total number of trails to aggregate
+                    #for i in range(10):                                      # Total number of trails to aggregate
+                    for i in range(5):                                      # Total number of trails to aggregate
+                    #for i in range(5, 10):                                      # Total number of trails to aggregate
                     
-                    # for i in range(2):                                      # Total number of trails to aggregate
-                    # for i in range(2, 5):                                      # Total number of trails to aggregate
+                    #for i in range(7, 10):                                      # Total number of trails to aggregate
+                    # for i in range(1, 5):                                      # Total number of trails to aggregate
                     # for i in range(5, 7):                                      # Total number of trails to aggregate
                     # for i in range(7, 10):                                      # Total number of trails to aggregate
                         flags = flag_reader.read_flag()  	#setting the base case
@@ -131,6 +146,8 @@ def hyper_sweep_AL():
                         if al_x_pool_factor is None:
                             al_x_pool_factor = 0.1      # 5 times the pool
                         flags.al_x_pool = int(flags.al_n_dx / al_x_pool_factor)
+                        # For NA, we are also doing the same initialization as the pool ratio
+                        flags.na_num_init = flags.al_x_pool
                         num_neuron_per_layer = flags.linear[1]      # This is marked here since Dropout might change and make new folder
                         # If dropout, we need to do the triple for the compensation
                         # if flags.al_mode == 'Dropout':
