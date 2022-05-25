@@ -70,106 +70,43 @@ def hyper_sweep_AL():
     num_train_upper = 2000
     al_x_pool_factor = None
     reset_weight = False
-    # for reset_weight in [True, False]:
     # for reset_weight in [False]:
-    for na_num_init in [10]:
-    # for na_num_init in [5, 10, 20]:
-    # for na_num_init in [20, 50, 100, 1000]:
-    # for na_num_init in [5, 10, 20, 50, 100, 1000]:
-    # for reset_weight in [False]:
-        #for al_mode in ['Random', 'NA']:
-        #for al_mode in ['NA']:
-        #for al_mode in ['VAR-Core']:
-        #for al_mode in ['VAR']:
-        #for al_mode in ['VAR_Div_Den']: # The Diversity only one, naming historically
-        #for al_mode in ['VAR_Div_Den_0.3_0.3']:
-        #for al_mode in ['Random']:
-        #for al_mode in ['NAMD_POW']:
-        #for al_mode in ['NA_Core']:
-        for al_mode in ['Dropout']:
-        #for al_mode in ['Core-set']:
-        #for al_mode in ['MSE']:
-        # for al_mode in ['Random','Core-set','VAR']:
-            # for al_n_step in [-1]:
-            #for al_n_step in [20]:
-                # for al_n_dx in [10]:
-                #for al_n_dx in [1, 5, 10, 20, 50]:
-                    # for al_n_x0 in [20]:
-                    #for al_n_x0 in [20, 50, 100, 200]:
-            # for bs in [200]:
-            # for bs in [500, 1000, 2000]:
-            # for al_x_pool_factor in [0.5, 0.1, 0.2, 0.25]:       # The size of the pool divided by the number of points chosen
-            # for al_x_pool_factor in [1/10]:       # The size of the pool divided by the number of points chosen
-            #for nalr in [0.05, 0.01, 0.005, 0.001, 0.0005]:
-            # for nalr in [0.005, 0.001]:
-            # for nalr in [0.001]:
-            #for al_x_pool_factor in [1]:       # The size of the pool divided by the number of points chosen
-            for al_x_pool_factor in [1/2]:       # The size of the pool divided by the number of points chosen
-            #for al_x_pool_factor in [1/2, 1/8, 1/64]:       # The size of the pool divided by the number of points chosen
-            #for al_x_pool_factor in [1/4, 1/16, 1/32]:       # The size of the pool divided by the number of points chosen
-            
-            #for al_x_pool_factor in [1/2, 1/4]:     # The size of the pool divided by the number of points chosen
-            #for al_x_pool_factor in [1/8, 1/16]:       # The size of the pool divided by the number of points chosen\
-            #for al_x_pool_factor in [1/32, 1/64]:       # The size of the pool divided by the number of points chosen
-            #for al_x_pool_factor in [1/128, 1/256]:       # The size of the pool divided by the number of points chosen
-                #for n_models in [10]:
-                for na_decay in [0.1]:
-                #for na_decay in [0.1, 0.3, 0.5, 0.7, 0.8, 0.9]:
-                    #ii = 4
-                    #for i in range(ii, ii+1):                                      # Total number of trails to aggregate
-                    #for i in range(10):                                      # Total number of trails to aggregate
-                    for i in range(5):                                      # Total number of trails to aggregate
-                    #for i in range(5, 10):                                      # Total number of trails to aggregate
+    #for al_mode in ['Random', 'NA']:
+    #for al_mode in ['NA']:
+    #for al_mode in ['VAR-Core']:
+    #for al_mode in ['VAR']:
+    #for al_mode in ['VAR_Div_Den']:            # The Diversity only one, naming historically
+    #for al_mode in ['VAR_Div_Den_0.3_0.3']:    # The Diversity and density one
+    #for al_mode in ['Random']:
+    #for al_mode in ['NAMD_POW']:
+    #for al_mode in ['NA_Core']:
+    # for al_mode in ['Dropout']:
+    #for al_mode in ['Core-set']:
+    #for al_mode in ['MSE']:
+    for al_mode in ['Random','NA','Core-set','VAR','VAR_Div_Den','VAR_Div_Den_0.3_0.3','Dropout']:
+        for al_x_pool_factor in [1/2, 1/4, 1/8, 1/16, 1/32, 1/64]:       # The size of the pool divided by the number of points chosen
+            for na_decay in [0.1]:
+                for i in range(5):                                      # Total number of trails to aggregate
+                    flags = flag_reader.read_flag()  	#setting the base case
+                    flags.reset_weight = reset_weight
+                    # flags.al_n_model = n_models
+                    flags.al_mode = al_mode
+                    if al_x_pool_factor is None:
+                        al_x_pool_factor = 0.2      # 5 times the pool
+                    flags.al_x_pool = int(flags.al_n_dx / al_x_pool_factor)
+                    # For NA, we are also doing the same initialization as the pool ratio
+                    flags.na_num_init = flags.al_x_pool
+                    num_neuron_per_layer = flags.linear[1]      # This is marked here since Dropout might change and make new folder
+                    flags.plot_dir = 'results/{}_num_layer_{}_nuron_{}_nmod_{}_toMSE_{}_dx_{}_naal_{}_reg_{}_lr_{}_decay_{}'.format(flags.data_set, len(flags.linear) - 2, 
+                                    num_neuron_per_layer, flags.al_n_model, flags.mse_cutoff, flags.al_n_dx, flags.naal, 
+                                    flags.reg_scale, flags.lr, flags.lr_decay_rate)
                     
-                    #for i in range(7, 10):                                      # Total number of trails to aggregate
-                    # for i in range(1, 5):                                      # Total number of trails to aggregate
-                    # for i in range(5, 7):                                      # Total number of trails to aggregate
-                    # for i in range(7, 10):                                      # Total number of trails to aggregate
-                        flags = flag_reader.read_flag()  	#setting the base case
-                        # flags.batch_size = 2048
-                        # flags.train_step = 100
-                        # flags.batch_size = bs
-                        # flags.train_step = 500
-                        # flags.nalr = nalr
-                        # flags.na_lr_decay_rate = na_decay
-                        # flags.na_num_init = na_num_init
-                        flags.reset_weight = reset_weight
-                        # flags.al_n_model = n_models
-                        flags.al_mode = al_mode
-                        # Get the actual al_step
-                        # if al_n_step == -1:
-                        #     flags.al_n_step = (num_train_upper - al_n_x0) // al_n_dx
-                        # else:
-                        #     flags.al_n_step = al_n_step
-                        # flags.al_n_dx = al_n_dx
-                        # flags.al_n_x0 = al_n_x0
-                        if al_x_pool_factor is None:
-                            al_x_pool_factor = 0.1      # 5 times the pool
-                        flags.al_x_pool = int(flags.al_n_dx / al_x_pool_factor)
-                        # For NA, we are also doing the same initialization as the pool ratio
-                        flags.na_num_init = flags.al_x_pool
-                        num_neuron_per_layer = flags.linear[1]      # This is marked here since Dropout might change and make new folder
-                        # If dropout, we need to do the triple for the compensation
-                        # if flags.al_mode == 'Dropout':
-                        #     flags.train_step = 1000
-                        #     flags.lr = 0.001
-                        #     flags.eval_step = 100
-                        #     flags.batch_size= 20
-                        #     for kk in range(1, len(flags.linear)-1):
-                        #         # flags.linear[i] *= int(2)
-                        #         flags.linear[kk] *= int(math.sqrt(flags.al_n_model)) # 10 represents the ensemble of 10 models
-                        # flags.plot_dir = 'results/{}_num_layer_{}_nuron_{}_nmod_{}_toMSE_{}_dx_{}_pool_mul_{}_naal_{}'.format(flags.data_set, len(flags.linear) - 2, 
-                        #         num_neuron_per_layer, n_models, flags.mse_cutoff, flags.al_n_dx, int(1/al_x_pool_factor), flags.naal)
-                        flags.plot_dir = 'results/{}_num_layer_{}_nuron_{}_nmod_{}_toMSE_{}_dx_{}_naal_{}_reg_{}_lr_{}_decay_{}'.format(flags.data_set, len(flags.linear) - 2, 
-                                        num_neuron_per_layer, flags.al_n_model, flags.mse_cutoff, flags.al_n_dx, flags.naal, 
-                                        flags.reg_scale, flags.lr, flags.lr_decay_rate)
-                        
-                        
-                        # Fix the same random number generator state for the same experiments
-                        flags.hashed_random_seed = hash_random_seed(flags.reset_weight, flags.al_n_step, flags.al_n_dx, flags.al_n_x0, flags.al_x_pool, flags.al_n_model, trail=i)
-                        np.random.seed(flags.hashed_random_seed)
+                    
+                    # Fix the same random number generator state for the same experiments
+                    flags.hashed_random_seed = hash_random_seed(flags.reset_weight, flags.al_n_step, flags.al_n_dx, flags.al_n_x0, flags.al_x_pool, flags.al_n_model, trail=i)
+                    np.random.seed(flags.hashed_random_seed)
 
-                        AL_from_flag(flags, trail=i)
+                    AL_from_flag(flags, trail=i)
 
 if __name__ == '__main__':
     # Read the parameters to be set
